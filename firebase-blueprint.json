@@ -1,0 +1,49 @@
+{
+  "entities": {
+    "Match": {
+      "title": "Match",
+      "description": "Represents a World Cup football match and its real score",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "teamA": { "type": "string" },
+        "teamB": { "type": "string" },
+        "scoreA": { "type": "number" },
+        "scoreB": { "type": "number" },
+        "date": { "type": "string" },
+        "status": { "type": "string" },
+        "minute": { "type": "number" },
+        "group": { "type": "string" },
+        "homeFlag": { "type": "string" },
+        "awayFlag": { "type": "string" }
+      },
+      "required": ["id", "teamA", "teamB"]
+    },
+    "Usuario": {
+      "title": "Usuario",
+      "description": "Represents a participant profile and their match predictions",
+      "type": "object",
+      "properties": {
+        "nome": { "type": "string" },
+        "avatar": { "type": "string" },
+        "email": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "palpites": {
+          "type": "object",
+          "description": "Keyed by matchId, storing guess scores"
+        }
+      },
+      "required": ["nome", "palpites"]
+    }
+  },
+  "firestore": {
+    "/config/jogos": {
+      "schema": "Match",
+      "description": "Collection of official matches list synced from the administration panel"
+    },
+    "/usuarios/{userId}": {
+      "schema": "Usuario",
+      "description": "User prediction documents keyed by their lowercase name identifier"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default safety catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Config matches document
+    match /config/jogos {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Participant profiles and guesses
+    match /usuarios/{userId} {
+      allow read, write: if true;
+    }
+  }
+}
