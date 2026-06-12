@@ -6,6 +6,7 @@ import Leaderboard from './components/Leaderboard';
 import MatchesList from './components/MatchesList';
 import LiveSimulator from './components/LiveSimulator';
 import RulesModal from './components/RulesModal';
+import GoogleLoginCard from './components/GoogleLoginCard';
 import { Trophy, HelpCircle, Shield, ShieldAlert, Sparkles, Check, Database, RefreshCw, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -84,6 +85,52 @@ export default function App() {
       }
     }
     triggerToast('Participante excluído.');
+  };
+
+  const handleGoogleLogin = (profile: { name: string; email: string; imageUrl: string }) => {
+    setParticipants((prev) => {
+      // Check if participant with same email already exists
+      const existingIndex = prev.findIndex((p) => p.email?.toLowerCase() === profile.email.toLowerCase());
+      
+      if (existingIndex !== -1) {
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          name: profile.name,
+          imageUrl: profile.imageUrl,
+          isGoogleUser: true,
+        };
+        // Set active participant to the existing one
+        setTimeout(() => setActiveParticipantId(updated[existingIndex].id), 0);
+        return updated;
+      } else {
+        const newId = `p_google_${Date.now()}`;
+        const newP: Participant = {
+          id: newId,
+          name: profile.name,
+          avatar: '⚽',
+          email: profile.email,
+          imageUrl: profile.imageUrl,
+          isGoogleUser: true,
+        };
+        // Set active participant to the new one
+        setTimeout(() => setActiveParticipantId(newId), 0);
+        return [...prev, newP];
+      }
+    });
+    triggerToast(`🎉 Olá, ${profile.name}! Conectado via Google.`);
+  };
+
+  const handleGoogleLogout = () => {
+    const googleUser = participants.find((p) => p.id === activeParticipantId && p.isGoogleUser);
+    if (googleUser) {
+      // Just mark it as no longer active, fallback to non-google participant
+      const nonGoogle = participants.find((p) => !p.isGoogleUser);
+      if (nonGoogle) {
+        setActiveParticipantId(nonGoogle.id);
+      }
+      triggerToast(`🚪 Sessão de ${googleUser.name} finalizada.`);
+    }
   };
 
   // Guess Saving
@@ -280,6 +327,14 @@ export default function App() {
           
           {/* LEFT SIDEBAR: ACTIVE PROFILE SWAPPER & AUTOMATED LEADERBOARD (4 of 12 columns) */}
           <section className="lg:col-span-5 space-y-6 flex flex-col" id="sidebar-left">
+            
+            {/* Google Authentication Control Desk */}
+            <GoogleLoginCard
+              participants={participants}
+              activeParticipantId={activeParticipantId}
+              onGoogleLogin={handleGoogleLogin}
+              onGoogleLogout={handleGoogleLogout}
+            />
             
             {/* Participant selector engine */}
             <ParticipantSelector

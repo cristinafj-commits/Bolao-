@@ -113,12 +113,26 @@ export default function ParticipantSelector({
               }`}
             >
               <div className="flex items-center gap-3">
-                <span className="text-xl shrink-0 bg-slate-800/80 rounded-lg w-10 h-10 flex items-center justify-center border border-slate-700/50">
-                  {p.avatar}
-                </span>
+                {p.imageUrl ? (
+                  <img
+                    src={p.imageUrl}
+                    alt={p.name}
+                    referrerPolicy="no-referrer"
+                    className="w-10 h-10 rounded-lg object-cover shrink-0 border border-slate-700"
+                  />
+                ) : (
+                  <span className="text-xl shrink-0 bg-slate-800/80 rounded-lg w-10 h-10 flex items-center justify-center border border-slate-700/50">
+                    {p.avatar}
+                  </span>
+                )}
                 <div>
-                  <h4 className="font-medium text-sm text-white flex items-center gap-1.5">
+                  <h4 className="font-medium text-sm text-white flex items-center gap-1.5 flex-wrap">
                     {p.name}
+                    {p.isGoogleUser && (
+                      <span className="bg-amber-500/10 text-amber-400 text-[8px] px-1 py-0.2 rounded-xs font-semibold" title={p.email}>
+                        Google
+                      </span>
+                    )}
                     {isActive && (
                       <span className="bg-emerald-500/10 text-emerald-400 text-[10px] px-1.5 py-0.5 rounded-sm font-semibold flex items-center gap-0.5">
                         <Check className="w-2.5 h-2.5" />
@@ -126,7 +140,9 @@ export default function ParticipantSelector({
                       </span>
                     )}
                   </h4>
-                  <p className="text-[10px] text-slate-400">Clique para enviar ou editar palpites</p>
+                  <p className="text-[10px] text-slate-400">
+                    {p.isGoogleUser ? `Conectado: ${p.email}` : 'Clique para enviar ou editar palpites'}
+                  </p>
                 </div>
               </div>
 

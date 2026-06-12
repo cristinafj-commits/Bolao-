@@ -19,6 +19,9 @@ export interface Participant {
   name: string;
   avatar: string;
   isCustom?: boolean;
+  email?: string;
+  imageUrl?: string;
+  isGoogleUser?: boolean;
 }
 
 export interface Guess {

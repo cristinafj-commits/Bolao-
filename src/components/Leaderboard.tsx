@@ -82,9 +82,18 @@ export default function Leaderboard({ participants, scores, activeParticipantId 
 
                   {/* Participant Meta */}
                   <div className="col-span-6 flex items-center gap-2.5 min-w-0">
-                    <span className="text-lg bg-slate-800 w-8 h-8 rounded-full border border-slate-700 flex items-center justify-center py-0 shrink-0">
-                      {participant.avatar}
-                    </span>
+                    {participant.imageUrl ? (
+                      <img
+                        src={participant.imageUrl}
+                        alt={participant.name}
+                        referrerPolicy="no-referrer"
+                        className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-700"
+                      />
+                    ) : (
+                      <span className="text-lg bg-slate-800 w-8 h-8 rounded-full border border-slate-700 flex items-center justify-center py-0 shrink-0">
+                        {participant.avatar}
+                      </span>
+                    )}
                     <div className="min-w-0">
                       <h4 className="font-semibold text-sm text-white truncate flex items-center gap-1">
                         {participant.name}
