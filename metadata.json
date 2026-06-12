@@ -1,0 +1,8 @@
+{
+  "name": "Bolão da Copa",
+  "description": "Aplicativo para gerenciar bolão da Copa do Mundo com palpites de participantes, simulação ou atualização de resultados em tempo real e ranking automático.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

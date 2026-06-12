@@ -1,0 +1,51 @@
+export type MatchStatus = 'SCHEDULED' | 'LIVE' | 'FINISHED';
+
+export interface Match {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeFlag: string;
+  awayFlag: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  status: MatchStatus;
+  minute: number; // 0 to 90 for LIVE simulator
+  group: string;
+  date: string;
+}
+
+export interface Participant {
+  id: string;
+  name: string;
+  avatar: string;
+  isCustom?: boolean;
+}
+
+export interface Guess {
+  participantId: string;
+  matchId: string;
+  homeScoreGuess: number;
+  awayScoreGuess: number;
+}
+
+export interface ParticipantScores {
+  participantId: string;
+  points: number;
+  exactScores: number; // TIE-BREAKER: Exact scores guessed
+  correctOutcomes: number; // TIE-BREAKER: Correct outcome but not exact score
+  pointsBreakdown: {
+    exact: number; // count of matches
+    difference: number; // count of matches
+    oneTeam: number; // count of matches
+    outcome: number; // count of matches
+    zero: number; // count of matches
+  };
+}
+
+export interface SimulationEvent {
+  matchId: string;
+  time: number; // Match minute
+  message: string;
+  team: 'home' | 'away';
+  type: 'GOAL' | 'START' | 'HALF_TIME' | 'END' | 'CLOSE_CALL';
+}
