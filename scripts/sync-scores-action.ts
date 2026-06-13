@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { initializeFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { getDatabase, ref, get, set } from 'firebase/database';
 
 // Configuration of the Bolão Firebase database
 const firebaseConfig = {
@@ -9,7 +9,8 @@ const firebaseConfig = {
   storageBucket: "bolao-da-copa-ff854.firebasestorage.app",
   messagingSenderId: "730063016595",
   appId: "1:730063016595:web:a300394ce11bff5e0bb366",
-  measurementId: "G-CH72NPPMPQ"
+  measurementId: "G-CH72NPPMPQ",
+  databaseURL: "https://bolao-da-copa-ff854-default-rtdb.firebaseio.com"
 };
 
 // Team translations dictionary to support matching English API names with Portuguese names
@@ -104,23 +105,23 @@ async function syncScores() {
 
   console.log("🚀 Iniciando robô de sincronização automática de jogos...");
 
-  // Initialize Firebase applet database
+  // Initialize Firebase applet Realtime Database
   const app = initializeApp(firebaseConfig);
-  const db = initializeFirestore(app, { experimentalForceLongPolling: true });
+  const db = getDatabase(app);
 
   try {
-    // 1. Fetch current matches from Firestore
-    console.log("📚 Buscando jogos cadastrados no Firestore...");
-    const configDocRef = doc(db, "config", "jogos");
-    const docSnapshot = await getDoc(configDocRef);
+    // 1. Fetch current matches from Realtime Database
+    console.log("📚 Buscando jogos cadastrados no Realtime Database...");
+    const snapshot = await get(ref(db, "config/jogos"));
 
-    if (!docSnapshot.exists()) {
-      console.error("⚠️ Documento config/jogos não existe no banco!");
+    if (!snapshot.exists()) {
+      console.error("⚠️ Caminho/Documento config/jogos não existe no banco!");
+      console.error("Por favor, acesse o site no navegador pelo menos uma vez para inicializar os jogos!");
       process.exit(1);
     }
 
-    const { lista: currentMatches } = docSnapshot.data() as { lista: LocalMatch[] };
-    console.log(`✅ Foram encontrados ${currentMatches.length} jogos locais no Firestore.`);
+    const { lista: currentMatches } = snapshot.val() as { lista: LocalMatch[] };
+    console.log(`✅ Foram encontrados ${currentMatches.length} jogos locais no Realtime Database.`);
 
     // 2. Fetch latest scores from Football-Data.org API
     const leagueCode = 'WC'; // World Cup por padrão
@@ -185,9 +186,9 @@ async function syncScores() {
       process.exit(0);
     }
 
-    // 4. Save updated results to Firestore
-    console.log(`💾 Gravando novos dados no Firestore (${updatedCount} partidas atualizadas)...`);
-    await setDoc(configDocRef, { lista: updatedList });
+    // 4. Save updated results to Realtime Database
+    console.log(`💾 Gravando novos dados no Realtime Database (${updatedCount} partidas atualizadas)...`);
+    await set(ref(db, "config/jogos"), { lista: updatedList });
     console.log("🎉 Sucesso! Robô rodou e sincronizou os jogos com maestria.");
     process.exit(0);
 
