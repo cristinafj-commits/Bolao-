@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Match, Guess, Participant } from '../types';
 import { calculateGuessPoints } from '../utils';
-import { Users, Save, CheckCircle, ChevronDown, ChevronUp, Lock, Edit2, Play, Sparkles, AlertCircle, Calendar, Search, ListFilter } from 'lucide-react';
+import { Users, Save, CheckCircle, ChevronDown, ChevronUp, Lock, Edit2, Play, Sparkles, AlertCircle, Calendar, Search, ListFilter, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Normalizes single-digit or zero-padded day names (e.g., "09 Jun" or "9 Jun" become "9 Jun")
 const normalizeDateStr = (dateStr: string) => {
@@ -12,6 +12,22 @@ const normalizeDateStr = (dateStr: string) => {
   const dayVal = parseInt(parts[0], 10);
   if (isNaN(dayVal)) return dayMonth.trim();
   return `${dayVal} ${parts[1]}`;
+};
+
+// Gets the week day abbreviation in Portuguese for a given "DD Jun" date string in 2026
+const getWeekDayPt = (dateStr: string) => {
+  const parts = dateStr.trim().split(' ');
+  const day = parseInt(parts[0], 10);
+  const monthStr = parts[1];
+  if (isNaN(day)) return '';
+  const months: Record<string, number> = {
+    'Jan': 0, 'Fev': 1, 'Mar': 2, 'Abr': 3, 'Mai': 4, 'Jun': 5,
+    'Jul': 6, 'Ago': 7, 'Set': 8, 'Out': 9, 'Nov': 10, 'Dez': 11
+  };
+  const month = months[monthStr] !== undefined ? months[monthStr] : 5;
+  const dateObj = new Date(2026, month, day);
+  const daysPt = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
+  return daysPt[dateObj.getDay()];
 };
 
 interface MatchesListProps {
@@ -285,34 +301,64 @@ export default function MatchesList({
                 </span>
               </div>
 
-              <div 
-                className="flex gap-2 pb-1 overflow-x-auto scrollbar-thin scrollbar-thumb-emerald-600 scrollbar-track-transparent snap-x justify-start select-none" 
-                id="dates-scroll-row"
-              >
-                {uniqueDates.map((date) => {
-                  const isSelected = date === selectedDate;
-                  const matchesCountOnDay = matches.filter((m) => normalizeDateStr(m.date) === date).length;
+              <div className="relative flex items-center group/calendar mt-1 bg-slate-50/50 p-2 rounded-2xl border border-slate-100">
+                {/* Left scroll assist button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    document.getElementById('dates-scroll-row')?.scrollBy({ left: -160, behavior: 'smooth' });
+                  }}
+                  className="absolute left-2 z-10 p-1.5 rounded-full bg-white/95 border border-slate-205 shadow-md hover:bg-white text-slate-700 hover:text-emerald-700 transition active:scale-90 cursor-pointer lg:flex hidden"
+                  title="Anterior"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
 
-                  return (
-                    <button
-                      key={date}
-                      onClick={() => setSelectedDate(date)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all shrink-0 snap-center flex flex-col items-center gap-0.5 cursor-pointer min-w-[72px] shadow-3xs active:scale-95 ${
-                        isSelected
-                          ? 'bg-emerald-700 text-white ring-1 ring-yellow-455 shadow-sm shadow-emerald-700/20'
-                          : 'bg-emerald-50/20 text-emerald-990 hover:bg-emerald-50 border border-emerald-100/40 hover:border-emerald-200/50'
-                      }`}
-                      id={`date-chip-${date.replace(' ', '-')}`}
-                    >
-                      <span className="tracking-tight">{date}</span>
-                      <span className={`text-[8px] font-mono font-black px-1.5 py-0.2 rounded-sm leading-none ${
-                        isSelected ? 'bg-yellow-450 text-emerald-950' : 'bg-emerald-100 text-emerald-850'
-                      }`}>
-                        {matchesCountOnDay} {matchesCountOnDay === 1 ? 'jogo' : 'jogos'}
-                      </span>
-                    </button>
-                  );
-                })}
+                <div 
+                  className="flex gap-2.5 pb-1.5 overflow-x-auto scrollbar-thin scrollbar-thumb-emerald-600/35 scrollbar-track-transparent snap-x justify-start select-none w-full px-1 lg:px-9" 
+                  id="dates-scroll-row"
+                >
+                  {uniqueDates.map((date) => {
+                    const isSelected = date === selectedDate;
+                    const matchesCountOnDay = matches.filter((m) => normalizeDateStr(m.date) === date).length;
+                    const weekDay = getWeekDayPt(date);
+
+                    return (
+                      <button
+                        key={date}
+                        onClick={() => setSelectedDate(date)}
+                        className={`px-3 py-2 rounded-2xl transition-all duration-200 shrink-0 snap-center flex flex-col items-center gap-0.5 cursor-pointer min-w-[76px] shadow-3xs active:scale-95 ${
+                          isSelected
+                            ? 'bg-gradient-to-b from-emerald-600 to-emerald-850 text-white ring-2 ring-yellow-450 border border-emerald-500 shadow-md shadow-emerald-750/30'
+                            : 'bg-white hover:bg-emerald-50/50 text-slate-800 border border-slate-205 hover:border-emerald-300'
+                        }`}
+                        id={`date-chip-${date.replace(' ', '-')}`}
+                      >
+                        <span className={`text-[9px] font-black tracking-widest ${
+                          isSelected ? 'text-yellow-300' : 'text-slate-400'
+                        }`}>{weekDay}</span>
+                        <span className="text-xs font-black tracking-tight leading-none">{date}</span>
+                        <span className={`text-[9px] font-mono font-black px-2 py-0.5 rounded-full leading-none mt-1 ${
+                          isSelected ? 'bg-yellow-450 text-emerald-950 font-black' : 'bg-slate-100 text-emerald-850'
+                        }`}>
+                          {matchesCountOnDay} {matchesCountOnDay === 1 ? 'jogo' : 'jogos'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Right scroll assist button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    document.getElementById('dates-scroll-row')?.scrollBy({ left: 160, behavior: 'smooth' });
+                  }}
+                  className="absolute right-2 z-10 p-1.5 rounded-full bg-white/95 border border-slate-205 shadow-md hover:bg-white text-slate-700 hover:text-emerald-700 transition active:scale-90 cursor-pointer lg:flex hidden"
+                  title="Próximo"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
           )

@@ -9,6 +9,7 @@ import GoogleLoginCard from './components/GoogleLoginCard';
 import DataBackupCard from './components/DataBackupCard';
 import AdminPasscodeModal from './components/AdminPasscodeModal';
 import LeaderBanner from './components/LeaderBanner';
+import WorldCupTrophy from './components/WorldCupTrophy';
 import { Trophy, HelpCircle, Shield, ShieldAlert, Sparkles, Check, Database, RefreshCw, Star, Calendar, Users, Zap, Cloud, CloudOff, CloudLightning, Key, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, doc, setDoc, onSnapshot, collection } from './firebase';
@@ -971,15 +972,68 @@ export default function App() {
   const activeParticipant = participants.find((p) => p.id === activeParticipantId);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50/70 via-yellow-50/30 to-blue-50/15 text-slate-800 flex flex-col font-sans" id="app-wrapper">
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50/70 via-yellow-50/30 to-blue-50/15 text-slate-800 flex flex-col font-sans relative" id="app-wrapper">
       
+      {/* Background Soccer Field Watermark lines - Brazilian Flag inspired colors */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-[0.04] flex items-center justify-center select-none">
+        <svg 
+          viewBox="0 0 800 1200" 
+          fill="none" 
+          stroke="currentColor" 
+          strokeWidth="3" 
+          className="w-[90vw] h-[90vh] text-emerald-800"
+          id="global-soccer-field-lines"
+        >
+          {/* Boundaries */}
+          <rect x="40" y="40" width="720" height="1120" rx="6" />
+          <line x1="40" y1="600" x2="760" y2="600" />
+          <circle cx="400" cy="600" r="120" />
+          <circle cx="400" cy="600" r="6" fill="currentColor" />
+          
+          {/* Top Penalty Box */}
+          <rect x="180" y="40" width="440" height="200" />
+          <rect x="290" y="40" width="220" height="70" />
+          <circle cx="400" cy="160" r="4" fill="currentColor" />
+          <path d="M 314 240 A 120 120 0 0 0 486 240" />
+          
+          {/* Bottom Penalty Box */}
+          <rect x="180" y="960" width="440" height="200" />
+          <rect x="290" y="1100" width="220" height="70" />
+          <circle cx="400" cy="1040" r="4" fill="currentColor" />
+          <path d="M 314 960 A 120 120 0 0 1 486 960" />
+          
+          {/* Corner arcs */}
+          <path d="M 40 70 A 30 30 0 0 0 70 40" />
+          <path d="M 730 40 A 30 30 0 0 0 760 70" />
+          <path d="M 40 1130 A 30 30 0 0 0 70 1160" />
+          <path d="M 730 1160 A 30 30 0 0 0 760 1130" />
+        </svg>
+      </div>
+
       {/* Top Glassmorphic Navigation Banner */}
-      <header className="sticky top-0 z-40 bg-emerald-800 backdrop-blur-md border-b-2 border-yellow-400 px-4 py-3.5 sm:px-6 text-white shadow-md" id="app-header">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
+      <header className="sticky top-0 z-40 bg-emerald-800 backdrop-blur-md border-b-2 border-yellow-400 px-4 py-3.5 sm:px-6 text-white shadow-md overflow-hidden" id="app-header">
+        
+        {/* Subtle Soccer Field lines overlay in the header */}
+        <div className="absolute inset-0 opacity-[0.08] pointer-events-none select-none">
+          <svg viewBox="0 0 1000 100" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full text-yellow-300">
+            {/* Midfield line */}
+            <line x1="500" y1="0" x2="500" y2="100" />
+            {/* Center circle */}
+            <circle cx="500" cy="50" r="45" />
+            <circle cx="500" cy="50" r="3" fill="currentColor" />
+            {/* Penalty areas on the sides */}
+            <rect x="-80" y="5" width="160" height="90" rx="3" />
+            <rect x="920" y="5" width="160" height="90" rx="3" />
+            <circle cx="120" cy="50" r="3" fill="currentColor" />
+            <circle cx="880" cy="50" r="3" fill="currentColor" />
+          </svg>
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
           {/* Logo Title */}
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white/10 rounded-xl border border-white/20 text-yellow-300">
-              <Trophy className="w-6 h-6 animate-pulse" />
+            <div className="p-1.5 px-2 bg-gradient-to-b from-white/20 to-white/5 rounded-2xl border border-white/20 flex items-center justify-center shadow-inner group hover:scale-105 transition-transform duration-300">
+              <WorldCupTrophy className="w-10 h-10 animate-pulse" />
             </div>
             <div>
               <h1 className="font-extrabold text-base sm:text-lg tracking-tight text-white">
@@ -1387,7 +1441,7 @@ export default function App() {
 
       {/* Mobile Sticky Bottom Tab Bar - Visible premium mobile-friendly design navigation */}
       <div 
-        className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white/95 backdrop-blur-md border-t border-slate-205 pb-2 shadow-2xl" 
+        className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white/95 backdrop-blur-md border-t border-slate-200 pb-2 shadow-2xl" 
         id="mobile-navigation-bar"
       >
         <div className="grid grid-cols-3 items-center h-16">
@@ -1395,39 +1449,45 @@ export default function App() {
             onClick={() => {
               setMobileActiveTab('jogos');
             }}
-            className={`flex flex-col items-center justify-center gap-1 h-full select-none cursor-pointer transition-colors ${
-              mobileActiveTab === 'jogos' ? 'text-emerald-700 font-bold font-mono' : 'text-slate-500 hover:text-emerald-700'
+            className={`flex flex-col items-center justify-center gap-1 h-full select-none cursor-pointer transition-all duration-250 border-t-4 ${
+              mobileActiveTab === 'jogos' 
+                ? 'border-emerald-600 bg-emerald-50 text-emerald-800 font-extrabold' 
+                : 'border-transparent text-slate-500 hover:text-emerald-700 hover:bg-slate-50/50'
             }`}
             id="mobile-tab-jogos"
           >
-            <Calendar className="w-5 h-5" />
-            <span className="text-[10px]">Jogos</span>
+            <Calendar className={`w-5 h-5 transition-transform ${mobileActiveTab === 'jogos' ? 'scale-110 text-emerald-600' : 'text-slate-400'}`} />
+            <span className="text-[10px] font-bold tracking-wider">Jogos</span>
           </button>
 
           <button
             onClick={() => {
               setMobileActiveTab('classificacao');
             }}
-            className={`flex flex-col items-center justify-center gap-1 h-full select-none cursor-pointer transition-colors ${
-              mobileActiveTab === 'classificacao' ? 'text-emerald-700 font-bold font-mono' : 'text-slate-500 hover:text-emerald-700'
+            className={`flex flex-col items-center justify-center gap-1 h-full select-none cursor-pointer transition-all duration-250 border-t-4 ${
+              mobileActiveTab === 'classificacao' 
+                ? 'border-yellow-500 bg-yellow-50/70 text-amber-800 font-extrabold' 
+                : 'border-transparent text-slate-500 hover:text-amber-600 hover:bg-slate-50/50'
             }`}
             id="mobile-tab-classificacao"
           >
-            <Trophy className="w-5 h-5" />
-            <span className="text-[10px]">Ranking</span>
+            <Trophy className={`w-5 h-5 transition-transform ${mobileActiveTab === 'classificacao' ? 'scale-110 text-yellow-650' : 'text-slate-400'}`} />
+            <span className="text-[10px] font-bold tracking-wider">Ranking</span>
           </button>
 
           <button
             onClick={() => {
               setMobileActiveTab('perfil');
             }}
-            className={`flex flex-col items-center justify-center gap-1 h-full select-none cursor-pointer transition-colors ${
-              mobileActiveTab === 'perfil' ? 'text-emerald-700 font-bold font-mono' : 'text-slate-500 hover:text-emerald-700'
+            className={`flex flex-col items-center justify-center gap-1 h-full select-none cursor-pointer transition-all duration-250 border-t-4 ${
+              mobileActiveTab === 'perfil' 
+                ? 'border-blue-600 bg-blue-50 text-blue-800 font-extrabold' 
+                : 'border-transparent text-slate-500 hover:text-blue-700 hover:bg-slate-50/50'
             }`}
             id="mobile-tab-perfil"
           >
-            <Users className="w-5 h-5" />
-            <span className="text-[10px]">Perfis</span>
+            <Users className={`w-5 h-5 transition-transform ${mobileActiveTab === 'perfil' ? 'scale-110 text-blue-600' : 'text-slate-400'}`} />
+            <span className="text-[10px] font-bold tracking-wider">Perfis</span>
           </button>
         </div>
       </div>
