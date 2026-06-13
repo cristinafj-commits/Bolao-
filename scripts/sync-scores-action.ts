@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, get, set } from 'firebase/database';
+import { initialMatches } from '../src/utils';
 
 // Configuration of the Bolão Firebase database
 const firebaseConfig = {
@@ -112,16 +113,33 @@ async function syncScores() {
   try {
     // 1. Fetch current matches from Realtime Database
     console.log("📚 Buscando jogos cadastrados no Realtime Database...");
-    const snapshot = await get(ref(db, "config/jogos"));
+    let snapshot = await get(ref(db, "config/jogos"));
+
+    let currentMatches: LocalMatch[] = [];
 
     if (!snapshot.exists()) {
-      console.error("⚠️ Caminho/Documento config/jogos não existe no banco!");
-      console.error("Por favor, acesse o site no navegador pelo menos uma vez para inicializar os jogos!");
-      process.exit(1);
+      console.log("⚠️ Caminho/Documento config/jogos não existe no banco! Inicializando com partidos padrão de initialMatches...");
+      const converted = initialMatches.map((m) => ({
+        id: m.id,
+        teamA: m.homeTeam,
+        teamB: m.awayTeam,
+        scoreA: m.homeScore,
+        scoreB: m.awayScore,
+        date: m.date,
+        status: m.status as any,
+        minute: m.minute,
+        group: m.group,
+        homeFlag: m.homeFlag,
+        awayFlag: m.awayFlag
+      }));
+      await set(ref(db, "config/jogos"), { lista: converted });
+      currentMatches = converted;
+      console.log(`✅ Banco inicializado com sucesso com ${converted.length} jogos.`);
+    } else {
+      const val = snapshot.val();
+      currentMatches = val.lista || [];
+      console.log(`✅ Foram encontrados ${currentMatches.length} jogos locais no Realtime Database.`);
     }
-
-    const { lista: currentMatches } = snapshot.val() as { lista: LocalMatch[] };
-    console.log(`✅ Foram encontrados ${currentMatches.length} jogos locais no Realtime Database.`);
 
     // 2. Fetch latest scores from Football-Data.org API
     const leagueCode = 'WC'; // World Cup por padrão
