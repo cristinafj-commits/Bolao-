@@ -732,11 +732,17 @@ export default function App() {
 
       const isHomeMatch = remoteHome === localHome || remoteHomeShort === localHome ||
         remoteHome.includes(localHome) || localHome.includes(remoteHome) ||
-        (teamTranslations[localHome] && teamTranslations[localHome].some(t => remoteHome.includes(t) || remoteHomeShort.includes(t)));
+        (teamTranslations[localHome] && teamTranslations[localHome].some(t => {
+          const normT = normalize(t);
+          return remoteHome.includes(normT) || remoteHomeShort.includes(normT);
+        }));
 
       const isAwayMatch = remoteAway === localAway || remoteAwayShort === localAway ||
         remoteAway.includes(localAway) || localAway.includes(remoteAway) ||
-        (teamTranslations[localAway] && teamTranslations[localAway].some(t => remoteAway.includes(t) || remoteAwayShort.includes(t)));
+        (teamTranslations[localAway] && teamTranslations[localAway].some(t => {
+          const normT = normalize(t);
+          return remoteAway.includes(normT) || remoteAwayShort.includes(normT);
+        }));
 
       return isHomeMatch && isAwayMatch;
     });
