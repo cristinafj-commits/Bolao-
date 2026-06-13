@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { initializeFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 
 // Configuration of the Bolão Firebase database
 const firebaseConfig = {
@@ -106,7 +106,7 @@ async function syncScores() {
 
   // Initialize Firebase applet database
   const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+  const db = initializeFirestore(app, { experimentalForceLongPolling: true });
 
   try {
     // 1. Fetch current matches from Firestore
