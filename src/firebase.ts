@@ -61,6 +61,11 @@ export async function setDoc(docObj: any, data: any, options?: { merge?: boolean
   }
 }
 
+// Simple deleteDoc adapter
+export async function deleteDoc(docObj: any) {
+  await set(ref(db, docObj.path), null);
+}
+
 // Simple getDoc adapter
 export async function getDoc(docObj: any) {
   const snapshot = await get(ref(db, docObj.path));

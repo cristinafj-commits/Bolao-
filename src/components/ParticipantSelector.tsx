@@ -37,6 +37,9 @@ export default function ParticipantSelector({
   const [selectedAvatar, setSelectedAvatar] = useState('⚽');
   const [newParticipantRole, setNewParticipantRole] = useState<'servidor' | 'estagiario'>('servidor');
   
+  // Confirmation state for deleting participant
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  
   // Registration custom photo states
   const [regAvatarType, setRegAvatarType] = useState<'emoji' | 'image'>('emoji');
   const [regImageUrl, setRegImageUrl] = useState('');
@@ -445,7 +448,7 @@ export default function ParticipantSelector({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2">
                   {isAdminMode && onUpdateAvatar && !p.locked && !p.imageUrl && (
                     <button
                       onClick={(e) => {
@@ -453,11 +456,11 @@ export default function ParticipantSelector({
                         setEditingAvatarId(isEditingThis ? null : p.id);
                         setEditAvatarEmoji(p.avatar);
                       }}
-                      className="p-1.5 opacity-0 group-hover:opacity-100 hover:text-emerald-600 text-slate-400 rounded-lg hover:bg-emerald-500/10 transition-all cursor-pointer"
+                      className="p-1.5 sm:p-2 bg-slate-100 hover:bg-emerald-105 border border-slate-200/50 hover:border-emerald-250 text-slate-500 hover:text-emerald-700 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center shrink-0"
                       title="Editar Emoji"
                       id={`edit-avatar-trigger-btn-${p.id}`}
                     >
-                      <Smile className="w-3.5 h-3.5" />
+                      <Smile className="w-4 h-4" />
                     </button>
                   )}
 
@@ -465,16 +468,54 @@ export default function ParticipantSelector({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onDeleteParticipant(p.id);
+                        setConfirmingDeleteId(p.id);
                       }}
-                      className="p-1.5 opacity-0 group-hover:opacity-100 hover:text-rose-600 text-slate-400 rounded-lg hover:bg-rose-500/10 transition-all cursor-pointer"
+                      className="p-1.5 sm:p-2 bg-rose-50 hover:bg-rose-650 border border-rose-100 hover:border-rose-450 text-rose-500 hover:text-white rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center shrink-0"
                       title="Excluir participante"
+                      id={`delete-participant-trigger-${p.id}`}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   )}
                 </div>
               </div>
+
+              {/* Confirm deletion inline pane */}
+              {confirmingDeleteId === p.id && (
+                <div 
+                  className="p-4 bg-red-50/90 border border-red-200 rounded-2xl space-y-3 animate-in slide-in-from-top-1.5 duration-150 text-left mx-1 mt-1.5 shadow-xs"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <p className="text-[11.5px] font-bold text-red-900 leading-normal">
+                    ⚠️ Tem certeza que deseja de fato excluir o perfil de <strong>{p.name}</strong>?
+                    <span className="block font-medium text-[10px] text-red-700/80 mt-1">
+                      Esta ação é final e definitiva. Os palpites, fotos e todas as pontuações e estatísticas deste participante serão apagados permanentemente da Nuvem!
+                    </span>
+                  </p>
+                  <div className="flex gap-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onDeleteParticipant(p.id);
+                        setConfirmingDeleteId(null);
+                      }}
+                      className="flex-grow py-2 bg-red-650 hover:bg-red-700 text-white rounded-lg text-[10px] font-extrabold uppercase tracking-wide cursor-pointer shadow-3xs flex items-center justify-center gap-1.5 transition-colors text-center"
+                      id={`confirm-delete-btn-${p.id}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Deletar Definitivamente
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingDeleteId(null)}
+                      className="py-2 px-3 bg-slate-250 hover:bg-slate-300 text-slate-705 rounded-lg text-[10px] font-extrabold uppercase tracking-wide cursor-pointer transition-colors text-center"
+                      id={`cancel-delete-btn-${p.id}`}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {isEditingThis && (
                 <div 

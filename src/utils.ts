@@ -6,7 +6,7 @@ export const initialMatches: Match[] = [
   { id: 'm0', homeTeam: 'México', awayTeam: 'África do Sul', homeFlag: '🇲🇽', awayFlag: '🇿🇦', homeScore: 1, awayScore: 1, status: 'FINISHED', minute: 90, group: 'Grupo A (Rodada 1)', date: '11 Jun, 16:00' },
   { id: 'm1', homeTeam: 'Coreia do Sul', awayTeam: 'Tchéquia', homeFlag: '🇰🇷', awayFlag: '🇨🇿', homeScore: 2, awayScore: 1, status: 'FINISHED', minute: 90, group: 'Grupo A (Rodada 1)', date: '11 Jun, 23:00' },
   { id: 'm2', homeTeam: 'Canadá', awayTeam: 'Bósnia e Herzegovina', homeFlag: '🇨🇦', awayFlag: '🇧🇦', homeScore: 1, awayScore: 0, status: 'FINISHED', minute: 90, group: 'Grupo B (Rodada 1)', date: '12 Jun, 16:00' },
-  { id: 'm3', homeTeam: 'Estados Unidos', awayTeam: 'Paraguai', homeFlag: '🇺🇸', awayFlag: '🇵🇾', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Grupo D (Rodada 1)', date: '12 Jun, 22:00' },
+  { id: 'm3', homeTeam: 'Estados Unidos', awayTeam: 'Paraguai', homeFlag: '🇺🇸', awayFlag: '🇵🇾', homeScore: 4, awayScore: 1, status: 'FINISHED', minute: 90, group: 'Grupo D (Rodada 1)', date: '12 Jun, 22:00' },
   { id: 'm4', homeTeam: 'Catar', awayTeam: 'Suíça', homeFlag: '🇶🇦', awayFlag: '🇨🇭', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Grupo B (Rodada 1)', date: '13 Jun, 16:00' },
   { id: 'm5', homeTeam: 'Brasil', awayTeam: 'Marrocos', homeFlag: '🇧🇷', awayFlag: '🇲🇦', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Grupo C (Rodada 1)', date: '13 Jun, 19:00' },
   { id: 'm6', homeTeam: 'Haiti', awayTeam: 'Escócia', homeFlag: '🇭🇹', awayFlag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Grupo C (Rodada 1)', date: '13 Jun, 22:00' },

@@ -11,7 +11,7 @@ import AdminPasscodeModal from './components/AdminPasscodeModal';
 import WorldCupTrophy from './components/WorldCupTrophy';
 import { Trophy, HelpCircle, Shield, ShieldAlert, Sparkles, Check, Database, RefreshCw, Star, Calendar, Users, Zap, Cloud, CloudOff, CloudLightning, Key, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, doc, setDoc, onSnapshot, collection } from './firebase';
+import { db, doc, setDoc, onSnapshot, collection, deleteDoc } from './firebase';
 
 export default function App() {
   // One-time cleanup of previously created profiles in the initial version
@@ -132,20 +132,22 @@ export default function App() {
       if (snapshot.exists()) {
         const fbMatches = snapshot.data().lista;
         if (Array.isArray(fbMatches)) {
-          // Automatic database migration/upgrade to the new 72-match list or reset from outdated list
-          const hasOutdated = fbMatches.length < 72 || fbMatches.some((m: any) => 
-            (m.id === 'm0' && (m.teamB === 'Dinamarca' || m.awayTeam === 'Dinamarca')) ||
-            (m.id === 'm1' && (m.teamB === 'Suécia' || m.awayTeam === 'Suécia'))
-          );
-          
-          const needsHealing = fbMatches.some((m: any) => {
-            const local = initialMatches.find((lm) => lm.id === m.id);
-            if (!local) return false;
-            const fbScoreA = m.scoreA !== undefined ? m.scoreA : m.homeScore;
-            return local.homeScore !== null && (fbScoreA === null || fbScoreA === undefined);
-          });
+          // Check if the list contains API-imported games (IDs starting with "fd-")
+          const hasApiMatches = fbMatches.some((m: any) => m && m.id && m.id.toString().startsWith('fd-'));
 
-          if (fbMatches.length < initialMatches.length || hasOutdated || needsHealing) {
+          // We only trigger auto-healing/upgrade for local/test matches (not API imported ones)
+          let needsHealing = false;
+          let hasOutdated = false;
+
+          if (!hasApiMatches) {
+            hasOutdated = fbMatches.length < 72 || fbMatches.some((m: any) => 
+              (m.id === 'm0' && (m.teamB === 'Dinamarca' || m.awayTeam === 'Dinamarca')) ||
+              (m.id === 'm1' && (m.teamB === 'Suécia' || m.awayTeam === 'Suécia'))
+            );
+            needsHealing = fbMatches.length < initialMatches.length || hasOutdated;
+          }
+
+          if (needsHealing) {
             const upgraded = initialMatches.map((m) => {
               const fbMatch = hasOutdated ? null : fbMatches.find((fbm: any) => fbm.id === m.id);
               
@@ -156,10 +158,10 @@ export default function App() {
                 id: m.id,
                 teamA: m.homeTeam,
                 teamB: m.awayTeam,
-                scoreA: fbScoreA !== null ? fbScoreA : m.homeScore,
-                scoreB: fbScoreB !== null ? fbScoreB : m.awayScore,
+                scoreA: fbScoreA !== null && fbScoreA !== undefined ? fbScoreA : m.homeScore,
+                scoreB: fbScoreB !== null && fbScoreB !== undefined ? fbScoreB : m.awayScore,
                 date: m.date,
-                status: (fbMatch?.status && fbMatch?.status !== 'SCHEDULED') ? fbMatch.status : m.status,
+                status: fbMatch?.status !== undefined ? fbMatch.status : m.status,
                 minute: fbMatch?.minute !== undefined ? fbMatch.minute : m.minute,
                 group: m.group,
                 homeFlag: m.homeFlag,
@@ -182,9 +184,9 @@ export default function App() {
               awayTeam: m.teamB || m.awayTeam || localFallback?.awayTeam || 'Time B',
               homeFlag: m.homeFlag || localFallback?.homeFlag || '⚽',
               awayFlag: m.awayFlag || localFallback?.awayFlag || '⚽',
-              homeScore: rawScoreA !== null ? rawScoreA : localFallback?.homeScore,
-              awayScore: rawScoreB !== null ? rawScoreB : localFallback?.awayScore,
-              status: (m.status && m.status !== 'SCHEDULED') ? m.status : (localFallback?.status || 'SCHEDULED'),
+              homeScore: rawScoreA !== undefined ? rawScoreA : localFallback?.homeScore,
+              awayScore: rawScoreB !== undefined ? rawScoreB : localFallback?.awayScore,
+              status: m.status !== undefined ? m.status : (localFallback?.status || 'SCHEDULED'),
               minute: m.minute !== undefined ? m.minute : (localFallback?.minute || 0),
               group: m.group || localFallback?.group || 'Copa do Mundo',
               date: m.date || localFallback?.date || '',
@@ -323,16 +325,34 @@ export default function App() {
     }
   };
 
-  const handleDeleteParticipant = (id: string) => {
-    setParticipants((prev) => prev.filter((p) => p.id !== id));
-    setGuesses((prev) => prev.filter((g) => g.participantId !== id));
-    if (activeParticipantId === id) {
-      const remaining = participants.filter((p) => p.id !== id);
-      if (remaining.length > 0) {
-        setActiveParticipantId(remaining[0].id);
+  const handleDeleteParticipant = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "usuarios", id));
+      setParticipants((prev) => prev.filter((p) => p.id !== id));
+      setGuesses((prev) => prev.filter((g) => g.participantId !== id));
+      if (activeParticipantId === id) {
+        const remaining = participants.filter((p) => p.id !== id);
+        if (remaining.length > 0) {
+          setActiveParticipantId(remaining[0].id);
+        } else {
+          setActiveParticipantId('');
+        }
       }
+      triggerToast('🗑️ Participante excluído com sucesso da Nuvem!');
+    } catch (err) {
+      console.error("Erro ao excluir participante:", err);
+      setParticipants((prev) => prev.filter((p) => p.id !== id));
+      setGuesses((prev) => prev.filter((g) => g.participantId !== id));
+      if (activeParticipantId === id) {
+        const remaining = participants.filter((p) => p.id !== id);
+        if (remaining.length > 0) {
+          setActiveParticipantId(remaining[0].id);
+        } else {
+          setActiveParticipantId('');
+        }
+      }
+      triggerToast('⚠️ Falha ao se conectar. Excluído apenas localmente.');
     }
-    triggerToast('Participante excluído.');
   };
 
   const handleSelectParticipant = (pId: string) => {
