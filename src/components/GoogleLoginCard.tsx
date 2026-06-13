@@ -410,7 +410,8 @@ export default function GoogleLoginCard({
                       placeholder="Ex: Cristina Fernandes"
                       value={nameInput}
                       onChange={(e) => setNameInput(e.target.value)}
-                      className="w-full text-xs bg-slate-50 border border-slate-250 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/10 rounded-xl pl-9 pr-3 py-2.5 text-slate-800 outline-hidden placeholder:text-slate-400 transition-all"
+                      translate="no"
+                      className="notranslate w-full text-xs bg-slate-50 border border-slate-250 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/10 rounded-xl pl-9 pr-3 py-2.5 text-slate-800 outline-hidden placeholder:text-slate-400 transition-all"
                       id="login-name-input"
                     />
                   </div>
@@ -552,7 +553,7 @@ export default function GoogleLoginCard({
                     </div>
                     <div className="min-w-0 flex-1">
                       <span className="text-[9px] uppercase font-black tracking-wider text-slate-400 block text-left">Prévia do seu Perfil:</span>
-                      <span className="text-slate-800 font-extrabold text-xs truncate block text-left">
+                      <span translate="no" className="notranslate text-slate-800 font-extrabold text-xs truncate block text-left">
                         {nameInput.trim() || 'Seu Nome'}
                       </span>
                     </div>
