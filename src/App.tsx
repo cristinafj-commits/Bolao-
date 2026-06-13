@@ -638,6 +638,7 @@ export default function App() {
     'gana': ['ghana', 'gana'],
     'eua': ['usa', 'united states', 'eua', 'estados unidos', 'united states of america'],
     'estados unidos': ['usa', 'united states', 'eua', 'estados unidos', 'united states of america'],
+    'paraguai': ['paraguay', 'paraguai'],
     'belgica': ['belgium', 'bélgica', 'belgica'],
     'argelia': ['algeria', 'argélia', 'argelia'],
     'russia': ['russia', 'rússia'],
