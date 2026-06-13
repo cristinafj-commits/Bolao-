@@ -22,6 +22,7 @@ export interface Participant {
   email?: string;
   imageUrl?: string;
   isGoogleUser?: boolean;
+  locked?: boolean;
 }
 
 export interface Guess {
