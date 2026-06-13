@@ -37,8 +37,9 @@ export default function MatchesList({
 }: MatchesListProps) {
   const [expandedGuesses, setExpandedGuesses] = useState<Record<string, boolean>>({});
   const [editGuesses, setEditGuesses] = useState<Record<string, { home: number; away: number }>>({});
-  const [adminScores, setAdminScores] = useState<Record<string, { home: number; away: number; status: 'SCHEDULED' | 'LIVE' | 'FINISHED' }>>({});
+  const [adminScores, setAdminScores] = useState<Record<string, { home: number | null; away: number | null; status: 'SCHEDULED' | 'LIVE' | 'FINISHED' }>>({});
   const [justSavedIds, setJustSavedIds] = useState<Record<string, boolean>>({});
+  const [adminSavedIds, setAdminSavedIds] = useState<Record<string, boolean>>({});
 
   const [viewType, setViewType] = useState<'day' | 'round'>('day');
   const [selectedRound, setSelectedRound] = useState<string>('all');
@@ -189,9 +190,20 @@ export default function MatchesList({
     persistGuessImmediately(matchId, newHome, newAway);
   };
 
-  const handleAdminScoreChange = (matchId: string, team: 'home' | 'away', value: number) => {
-    const current = adminScores[matchId] || { home: 0, away: 1, status: 'SCHEDULED' };
-    const cleanVal = Math.max(0, Math.min(25, value));
+  const handleAdminScoreChange = (matchId: string, team: 'home' | 'away', rawValue: string) => {
+    const match = matches.find((x) => x.id === matchId);
+    const mHome = match ? match.homeScore : null;
+    const mAway = match ? match.awayScore : null;
+    const mStatus = match ? match.status : 'SCHEDULED';
+
+    const current = adminScores[matchId] || { home: mHome, away: mAway, status: mStatus };
+
+    let cleanVal: number | null = null;
+    if (rawValue && rawValue.trim() !== '') {
+      const parsed = parseInt(rawValue, 10);
+      cleanVal = isNaN(parsed) ? null : Math.max(0, Math.min(25, parsed));
+    }
+
     setAdminScores((prev) => ({
       ...prev,
       [matchId]: {
@@ -416,9 +428,9 @@ export default function MatchesList({
           const guessHome = editGuesses[m.id]?.home ?? myGuess?.homeScoreGuess ?? 0;
           const guessAway = editGuesses[m.id]?.away ?? myGuess?.awayScoreGuess ?? 0;
 
-          // Admin scores inputs
-          const currentAdminHomeScore = adminScores[m.id]?.home ?? m.homeScore ?? 0;
-          const currentAdminAwayScore = adminScores[m.id]?.away ?? m.awayScore ?? 0;
+          // Admin scores inputs without falling back to 0 if null
+          const currentAdminHomeScore = adminScores[m.id]?.home !== undefined ? adminScores[m.id]?.home : m.homeScore;
+          const currentAdminAwayScore = adminScores[m.id]?.away !== undefined ? adminScores[m.id]?.away : m.awayScore;
           const selectedStatus = adminScores[m.id]?.status ?? m.status;
 
           const isLive = m.status === 'LIVE';
@@ -506,22 +518,22 @@ export default function MatchesList({
                         <div className="flex items-center gap-1 bg-amber-50/55 border border-amber-300 p-1.5 rounded-xl shadow-2xs">
                           {/* HOME ADMIN BOX */}
                           <input
-                            type="number"
-                            min="0"
-                            max="20"
-                            value={currentAdminHomeScore}
-                            onChange={(e) => handleAdminScoreChange(m.id, 'home', parseInt(e.target.value, 10) || 0)}
-                            className="w-8 text-center font-mono font-black text-sm text-slate-900 bg-white border border-slate-250 rounded-sm"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={currentAdminHomeScore !== null && currentAdminHomeScore !== undefined ? currentAdminHomeScore : ''}
+                            onChange={(e) => handleAdminScoreChange(m.id, 'home', e.target.value)}
+                            className="w-10 text-center font-mono font-black text-sm text-slate-900 bg-white border border-slate-250 rounded-md py-0.5"
                           />
                           <span className="text-amber-500 font-bold select-none">:</span>
                           {/* AWAY ADMIN BOX */}
                           <input
-                            type="number"
-                            min="0"
-                            max="20"
-                            value={currentAdminAwayScore}
-                            onChange={(e) => handleAdminScoreChange(m.id, 'away', parseInt(e.target.value, 10) || 0)}
-                            className="w-8 text-center font-mono font-black text-sm text-slate-900 bg-white border border-slate-250 rounded-sm"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={currentAdminAwayScore !== null && currentAdminAwayScore !== undefined ? currentAdminAwayScore : ''}
+                            onChange={(e) => handleAdminScoreChange(m.id, 'away', e.target.value)}
+                            className="w-10 text-center font-mono font-black text-sm text-slate-900 bg-white border border-slate-250 rounded-md py-0.5"
                           />
                         </div>
                       </div>
@@ -570,7 +582,7 @@ export default function MatchesList({
                 </div>
 
                 {/* DEDICATED PALPITES (GUESSES) CONTAINER PANEL */}
-                {activeParticipant && (
+                {activeParticipant && !isAdminMode && (
                   <div className={`mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-2 p-2.5 rounded-xl border ${
                     isAdminMode 
                       ? 'bg-amber-50/30 border-amber-200/50' 
@@ -708,39 +720,36 @@ export default function MatchesList({
                   </span>
 
                   <div className="flex items-center gap-2 flex-wrap">
-                    <select
-                      value={selectedStatus}
-                      onChange={(e) => {
-                        const nextStatus = e.target.value as 'SCHEDULED' | 'LIVE' | 'FINISHED';
-                        const current = adminScores[m.id] || { home: m.homeScore ?? 0, away: m.awayScore ?? 0, status: m.status };
-                        setAdminScores((prev) => ({
-                          ...prev,
-                          [m.id]: {
-                            ...current,
-                            status: nextStatus,
-                          },
-                        }));
-                      }}
-                      className="bg-white border border-slate-300 text-slate-705 p-1 rounded-lg text-[10px] font-black uppercase outline-hidden"
-                    >
-                      <option value="SCHEDULED">AGENDADO</option>
-                      <option value="LIVE">AO VIVO</option>
-                      <option value="FINISHED">FINALIZADO</option>
-                    </select>
+                    <span className="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-1 rounded text-[9px] font-black uppercase select-none tracking-wider">
+                      Status: Finalizado
+                    </span>
 
                     <button
                       onClick={() => {
-                        const isScheduled = selectedStatus === 'SCHEDULED';
+                        const finalHome = currentAdminHomeScore !== null && currentAdminHomeScore !== undefined && String(currentAdminHomeScore).trim() !== '' ? Number(currentAdminHomeScore) : null;
+                        const finalAway = currentAdminAwayScore !== null && currentAdminAwayScore !== undefined && String(currentAdminAwayScore).trim() !== '' ? Number(currentAdminAwayScore) : null;
+                        
                         onUpdateActualScore(
                           m.id,
-                          isScheduled ? null : currentAdminHomeScore,
-                          isScheduled ? null : currentAdminAwayScore,
-                          selectedStatus
+                          finalHome,
+                          finalAway,
+                          'FINISHED'
                         );
+
+                        // Trigger visual success confirmation feedback
+                        setAdminSavedIds((prev) => ({ ...prev, [m.id]: true }));
+                        setTimeout(() => {
+                          setAdminSavedIds((prev) => ({ ...prev, [m.id]: false }));
+                        }, 2000);
                       }}
-                      className="py-1 px-3.5 rounded-lg text-white bg-emerald-600 hover:bg-emerald-500 font-extrabold text-[10px] uppercase tracking-wider cursor-pointer shadow-3xs select-none"
+                      className={`py-1 px-3.5 rounded-lg text-white font-extrabold text-[10px] uppercase tracking-wider cursor-pointer shadow-3xs select-none transition-all duration-300 ${
+                        adminSavedIds[m.id]
+                          ? 'bg-emerald-700 font-black animate-pulse'
+                          : 'bg-emerald-600 hover:bg-emerald-500'
+                      }`}
+                      id={`admin-save-btn-${m.id}`}
                     >
-                      Gravar
+                      {adminSavedIds[m.id] ? '✓ Gravado!' : 'Gravar'}
                     </button>
                   </div>
                 </div>

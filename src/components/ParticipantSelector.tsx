@@ -415,20 +415,6 @@ export default function ParticipantSelector({
                     </button>
                   )}
 
-                  {isAdminMode && p.locked && onUnlockParticipant && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onUnlockParticipant(p.id);
-                      }}
-                      className="p-1.5 hover:text-amber-600 text-slate-400 rounded-lg hover:bg-amber-500/15 transition-all cursor-pointer"
-                      title="Desbloquear palpites do participante"
-                      id={`unlock-btn-${p.id}`}
-                    >
-                      <Unlock className="w-3.5 h-3.5 text-amber-600" />
-                    </button>
-                  )}
-
                   {isAdminMode && participants.length > 0 && (
                     <button
                       onClick={(e) => {

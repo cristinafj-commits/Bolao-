@@ -8,6 +8,7 @@ import RulesModal from './components/RulesModal';
 import GoogleLoginCard from './components/GoogleLoginCard';
 import DataBackupCard from './components/DataBackupCard';
 import AdminPasscodeModal from './components/AdminPasscodeModal';
+import LeaderBanner from './components/LeaderBanner';
 import { Trophy, HelpCircle, Shield, ShieldAlert, Sparkles, Check, Database, RefreshCw, Star, Calendar, Users, Zap, Cloud, CloudOff, CloudLightning, Key, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, doc, setDoc, onSnapshot, collection } from './firebase';
@@ -1072,6 +1073,9 @@ export default function App() {
           )}
         </AnimatePresence>
 
+        {/* Celebrating 1st Place Champion banner when accessed */}
+        <LeaderBanner participants={participants} scores={scoresLeaderboard} />
+
         {/* Two Columns Dashboard */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" id="dashboard-columns-grid">
           
@@ -1112,14 +1116,16 @@ export default function App() {
               />
 
               {/* Local offline storage backup control card */}
-              <DataBackupCard
-                participants={participants}
-                matches={matches}
-                guesses={guesses}
-                activeParticipantId={activeParticipantId}
-                onImportData={handleImportData}
-                onResetDatabase={handleResetDatabaseAll}
-              />
+              {isAdminMode && (
+                <DataBackupCard
+                  participants={participants}
+                  matches={matches}
+                  guesses={guesses}
+                  activeParticipantId={activeParticipantId}
+                  onImportData={handleImportData}
+                  onResetDatabase={handleResetDatabaseAll}
+                />
+              )}
 
               {/* API and Football-Data Synchronization Panel */}
               {isAdminMode && (
