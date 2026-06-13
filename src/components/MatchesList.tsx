@@ -57,11 +57,42 @@ export default function MatchesList({
   const [justSavedIds, setJustSavedIds] = useState<Record<string, boolean>>({});
   const [adminSavedIds, setAdminSavedIds] = useState<Record<string, boolean>>({});
 
+  const [consultedParticipantId, setConsultedParticipantId] = useState<string>(activeParticipantId);
+
+  useEffect(() => {
+    setConsultedParticipantId(activeParticipantId);
+  }, [activeParticipantId]);
+
+  const [localHomeGuesses, setLocalHomeGuesses] = useState<Record<string, string>>({});
+  const [localAwayGuesses, setLocalAwayGuesses] = useState<Record<string, string>>({});
+
+  // Populate local input values from Firebase once loaded or changed
+  useEffect(() => {
+    const defaultHome: Record<string, string> = {};
+    const defaultAway: Record<string, string> = {};
+    
+    matches.forEach((m) => {
+      const myGuess = guesses.find((g) => g.participantId === consultedParticipantId && g.matchId === m.id);
+      if (myGuess && myGuess.homeScoreGuess !== null && myGuess.homeScoreGuess !== undefined) {
+        defaultHome[m.id] = String(myGuess.homeScoreGuess);
+        defaultAway[m.id] = String(myGuess.awayScoreGuess);
+      } else {
+        defaultHome[m.id] = '';
+        defaultAway[m.id] = '';
+      }
+    });
+
+    setLocalHomeGuesses(defaultHome);
+    setLocalAwayGuesses(defaultAway);
+  }, [consultedParticipantId, guesses, matches]);
+
   const [viewType, setViewType] = useState<'day' | 'round'>('day');
   const [selectedRound, setSelectedRound] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   const activeParticipant = participants.find((p) => p.id === activeParticipantId);
+  const consultedParticipant = participants.find((p) => p.id === consultedParticipantId);
+  const isConsultingSelf = consultedParticipantId === activeParticipantId;
 
   const unfilledMatchesCount = useMemo(() => {
     const activeGuesses = guesses.filter(
@@ -158,52 +189,45 @@ export default function MatchesList({
     setExpandedGuesses((prev) => ({ ...prev, [matchId]: !prev[matchId] }));
   };
 
-  const persistGuessImmediately = (matchId: string, home: number, away: number) => {
-    setEditGuesses((prev) => ({
-      ...prev,
-      [matchId]: { home, away }
-    }));
-    onSaveGuess(matchId, home, away);
+  const adjustLocalGuess = (matchId: string, team: 'home' | 'away', change: number) => {
+    const currentValStr = team === 'home' ? localHomeGuesses[matchId] : localAwayGuesses[matchId];
+    let currentVal = 0;
+    if (currentValStr !== undefined && currentValStr !== '') {
+      currentVal = parseInt(currentValStr, 10);
+      if (isNaN(currentVal)) currentVal = 0;
+    }
+    const finalVal = Math.max(0, Math.min(25, currentVal + change));
+    if (team === 'home') {
+      setLocalHomeGuesses((prev) => ({ ...prev, [matchId]: String(finalVal) }));
+    } else {
+      setLocalAwayGuesses((prev) => ({ ...prev, [matchId]: String(finalVal) }));
+    }
+  };
+
+  const handleInputChange = (matchId: string, team: 'home' | 'away', rawValue: string) => {
+    const cleaned = rawValue.replace(/[^0-9]/g, '');
+    if (team === 'home') {
+      setLocalHomeGuesses((prev) => ({ ...prev, [matchId]: cleaned }));
+    } else {
+      setLocalAwayGuesses((prev) => ({ ...prev, [matchId]: cleaned }));
+    }
+  };
+
+  const handleSaveGuessClick = (matchId: string) => {
+    const homeValStr = localHomeGuesses[matchId];
+    const awayValStr = localAwayGuesses[matchId];
+    if (homeValStr === undefined || homeValStr === '' || awayValStr === undefined || awayValStr === '') return;
+    
+    const homeVal = parseInt(homeValStr, 10);
+    const awayVal = parseInt(awayValStr, 10);
+    if (isNaN(homeVal) || isNaN(awayVal)) return;
+
+    onSaveGuess(matchId, homeVal, awayVal);
+
     setJustSavedIds((prev) => ({ ...prev, [matchId]: true }));
     setTimeout(() => {
       setJustSavedIds((prev) => ({ ...prev, [matchId]: false }));
-    }, 1500);
-  };
-
-  const handleGuessInputChange = (matchId: string, team: 'home' | 'away', rawValue: string) => {
-    const myGuess = guesses.find((g) => g.participantId === activeParticipantId && g.matchId === matchId);
-    const currentHome = editGuesses[matchId]?.home ?? myGuess?.homeScoreGuess ?? 0;
-    const currentAway = editGuesses[matchId]?.away ?? myGuess?.awayScoreGuess ?? 0;
-
-    let cleanVal = parseInt(rawValue, 10);
-    if (isNaN(cleanVal)) {
-      cleanVal = 0;
-    }
-    cleanVal = Math.max(0, Math.min(20, cleanVal));
-
-    const newHome = team === 'home' ? cleanVal : currentHome;
-    const newAway = team === 'away' ? cleanVal : currentAway;
-
-    persistGuessImmediately(matchId, newHome, newAway);
-  };
-
-  const updateGuessDirectly = (matchId: string, team: 'home' | 'away', change: number) => {
-    const myGuess = guesses.find((g) => g.participantId === activeParticipantId && g.matchId === matchId);
-    
-    // Retrieve current working value from state, or fallback to saved guess, or fallback to 0
-    const currentHome = editGuesses[matchId]?.home ?? myGuess?.homeScoreGuess ?? 0;
-    const currentAway = editGuesses[matchId]?.away ?? myGuess?.awayScoreGuess ?? 0;
-
-    let newHome = currentHome;
-    let newAway = currentAway;
-
-    if (team === 'home') {
-      newHome = Math.max(0, Math.min(20, currentHome + change));
-    } else {
-      newAway = Math.max(0, Math.min(20, currentAway + change));
-    }
-
-    persistGuessImmediately(matchId, newHome, newAway);
+    }, 2000);
   };
 
   const handleAdminScoreChange = (matchId: string, team: 'home' | 'away', rawValue: string) => {
@@ -287,19 +311,66 @@ export default function MatchesList({
 
         </div>
 
+        {/* Consultation Mode Selection Row */}
+        <div className="border-t border-slate-100 pt-3.5" id="consultation-section">
+          <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
+            
+            {/* Left Status side */}
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <span className="py-1 px-2 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-150 font-black flex items-center gap-1 shrink-0 uppercase tracking-wider text-[9px] select-none">
+                🔎 VISUALIZAÇÃO
+              </span>
+              <div className="min-w-0">
+                {activeParticipantId === '' ? (
+                  <span className="text-amber-800 font-extrabold bg-amber-50/75 px-2.5 py-1 rounded-lg border border-amber-200/60 inline-flex items-center gap-1.5 text-[11px] leading-none shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+                    Modo Consulta (Visitante)
+                  </span>
+                ) : (
+                  <span className="text-emerald-800 font-extrabold bg-emerald-50/75 px-2.5 py-1 rounded-lg border border-emerald-250/60 inline-flex items-center gap-1.5 text-[11px] leading-none shrink-0 truncate max-w-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                    Participante: {activeParticipant?.name}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Right dropdown filter side */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full lg:w-auto min-w-0">
+              <span className="text-slate-500 font-black uppercase tracking-wider text-[9px] shrink-0 sm:text-right">
+                Consultar Palpites:
+              </span>
+              <div className="relative w-full sm:w-72 max-w-full min-w-0">
+                <select
+                  value={consultedParticipantId}
+                  onChange={(e) => setConsultedParticipantId(e.target.value)}
+                  className="bg-white border border-slate-220 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/15 text-xs rounded-xl pl-3 pr-8 py-2 font-bold text-slate-800 cursor-pointer outline-hidden w-full truncate transition-all shadow-3xs"
+                  id="consultation-participant-select"
+                >
+                  {activeParticipantId !== '' && (
+                    <option value={activeParticipantId}>📝 Meus Palpites ({activeParticipant?.name})</option>
+                  )}
+                  <option value="">🚫 Apenas tabela de jogos (sem palpites)</option>
+                  {participants
+                    .filter(p => p.id !== activeParticipantId)
+                    .map(p => (
+                      <option key={p.id} value={p.id}>
+                        👁️ Palpites de {p.name} {p.locked ? '🔒' : '📝'}
+                      </option>
+                    ))
+                  }
+                </select>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
         {/* Mode specific sliders/selectors */}
         {viewType === 'day' ? (
           /* Day Slider Calendar (The Scrollable chip selection system) */
           uniqueDates.length > 0 && (
             <div className="space-y-2 border-t border-slate-100 pt-3" id="calendar-view-panel">
-              <div className="flex justify-between items-center px-0.5">
-                <span className="text-[10px] font-black text-emerald-800 uppercase tracking-widest flex items-center gap-1">
-                  📅 Calendário por Dia
-                </span>
-                <span className="text-[10px] bg-emerald-50 text-emerald-850 font-mono font-black px-2 mt-0.5 border border-emerald-200/50 rounded-sm">
-                  {selectedDate} • {filteredMatches.length} {filteredMatches.length === 1 ? 'partida selecionada' : 'partidas selecionadas'}
-                </span>
-              </div>
 
               <div className="relative flex items-center group/calendar mt-1 bg-slate-50/50 p-2 rounded-2xl border border-slate-100">
                 {/* Left scroll assist button */}
@@ -445,10 +516,10 @@ export default function MatchesList({
 
           {!activeParticipant.locked && onLockGuesses && (
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onLockGuesses();
-              }}
+               onClick={(e) => {
+                 e.stopPropagation();
+                 onLockGuesses();
+               }}
               disabled={unfilledMatchesCount > 0}
               className={`w-full md:w-auto py-2.5 px-5 font-extrabold text-xs rounded-xl cursor-pointer transition-all shadow-xs flex items-center justify-center gap-1.5 uppercase tracking-wider shrink-0 ${
                 unfilledMatchesCount > 0
@@ -464,10 +535,46 @@ export default function MatchesList({
         </div>
       )}
 
+      {/* Visitor Banner if not logged in / no active profile selected */}
+      {!activeParticipant && !isAdminMode && (
+        <div 
+          className="p-4 rounded-xl border flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50 border-slate-200 text-slate-800 shadow-3xs mb-4"
+          id="matches-visitor-banner"
+        >
+          <div className="flex items-start gap-3 text-left">
+            <div className="p-2 rounded-lg border bg-slate-100 border-slate-250 text-slate-500 shrink-0">
+              <Users className="w-5 h-5 shrink-0" />
+            </div>
+            <div className="space-y-0.5">
+              <span className="font-extrabold text-xs uppercase tracking-wider block text-slate-700">
+                👁️ Modo de Consulta (Sem Login)
+              </span>
+              <span className="text-xs text-slate-500 block leading-relaxed">
+                Você está visualizando a tabela e palpites de forma anônima. Para fazer suas próprias apostas e preencher palpites, siga para a aba **"Perfil"** para cadastrar ou acessar um perfil do Bolão!
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              const tabBtn = document.getElementById('tab-btn-perfil') || document.getElementById('mobile-tab-perfil');
+              if (tabBtn) {
+                tabBtn.click();
+              } else {
+                const card = document.getElementById('login-card') || document.getElementById('sidebar-left');
+                if (card) card.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}
+            className="w-full md:w-auto py-2.5 px-5 bg-emerald-650 hover:bg-emerald-555 text-white font-extrabold text-xs rounded-xl cursor-pointer transition-all shadow-md active:scale-95"
+          >
+            Apostar / Criar Meu Perfil
+          </button>
+        </div>
+      )}
+
       {filteredMatches.length > 0 ? (
         filteredMatches.map((m) => {
           // Find current participant's guess
-          const myGuess = guesses.find((g) => g.participantId === activeParticipantId && g.matchId === m.id);
+          const myGuess = guesses.find((g) => g.participantId === consultedParticipantId && g.matchId === m.id);
           const hasGuessed = !!myGuess;
 
           // Active editing inputs local state inside editGuesses or fallbacks
@@ -484,7 +591,7 @@ export default function MatchesList({
           const isScheduled = m.status === 'SCHEDULED';
 
           // Allow submitting guesses even for already played or live games to let user consolidate results
-          const isMatchLocked = !!activeParticipant?.locked && !isAdminMode;
+          const isMatchLocked = !isConsultingSelf || (!!activeParticipant?.locked && !isAdminMode);
 
           // Calculate points for active participant if match score exists
           const scoreResult = calculateGuessPoints(
@@ -531,29 +638,29 @@ export default function MatchesList({
 
               {/* Teams, Inputs, and Scores Display Symmetrical Layout */}
               <div className="p-4 sm:p-5" id={`match-${m.id}-dashboard`}>
-                <div className="grid grid-cols-12 gap-1 sm:gap-4 items-center">
+                <div className="flex items-center justify-between gap-1.5 sm:gap-4 w-full">
                   
                   {/* Home Team (Left Side) */}
-                  <div className="col-span-4 sm:col-span-5 flex flex-col sm:flex-row items-center justify-end gap-1.5 sm:gap-3 text-right">
-                    <span className="font-extrabold text-[11px] sm:text-sm md:text-base text-slate-900 tracking-tight text-right truncate max-w-[85px] sm:max-w-none order-2 sm:order-1 select-none leading-tight">
+                  <div className="flex-1 flex items-center justify-end gap-1.5 sm:gap-3 text-right min-w-0">
+                    <span className="font-extrabold text-xs sm:text-sm md:text-base text-slate-900 tracking-tight text-right truncate min-w-0 select-none leading-none">
                       {m.homeTeam}
                     </span>
                     {m.homeFlag && m.homeFlag.startsWith('http') ? (
                       <img 
                         src={m.homeFlag} 
-                        className="w-8 h-8 sm:w-10 sm:h-10 object-contain shrink-0 order-1 sm:order-2 filter drop-shadow-xs" 
+                        className="w-6 h-6 sm:w-10 sm:h-10 object-contain shrink-0 filter drop-shadow-xs animate-fade-in" 
                         alt={m.homeTeam} 
                         referrerPolicy="no-referrer" 
                       />
                     ) : (
-                      <span className="text-2xl sm:text-3xl filter drop-shadow-xs select-none order-1 sm:order-2 shrink-0" role="img" aria-label={m.homeTeam}>
+                      <span className="text-xl sm:text-3xl filter drop-shadow-xs select-none shrink-0" role="img" aria-label={m.homeTeam}>
                         {m.homeFlag}
                       </span>
                     )}
                   </div>
 
                   {/* Score / Selector Center Column */}
-                  <div className="col-span-4 sm:col-span-2 flex justify-center items-center">
+                  <div className="flex-shrink-0 flex justify-center items-center px-1 sm:px-2 min-w-[70px] sm:min-w-[100px]">
                     {isAdminMode ? (
                       /* DEEP ADMINISTRATOR ACTIVE OVERRIDES */
                       <div className="flex flex-col items-center gap-1.5" id={`admin-override-box-${m.id}`}>
@@ -586,7 +693,7 @@ export default function MatchesList({
                     ) : (
                       /* OFFICIAL GAME SCOREBOARD */
                       <div className="flex flex-col items-center gap-1">
-                        <span className="text-[8px] font-extrabold text-slate-400 tracking-wider uppercase select-none">
+                        <span className="text-[8px] font-extrabold text-slate-400 tracking-wider uppercase select-none whitespace-nowrap">
                           Placar Oficial
                         </span>
                         {isScheduled ? (
@@ -594,7 +701,7 @@ export default function MatchesList({
                             VS
                           </div>
                         ) : (
-                          <div className={`flex items-center gap-1 bg-slate-100 px-3 py-1 border border-slate-205 shadow-3xs font-mono font-black text-sm text-slate-900 select-none rounded-lg ${
+                          <div className={`flex items-center gap-1 bg-slate-100 px-3 py-1 border border-slate-205 shadow-3xs font-mono font-black text-xs sm:text-sm text-slate-900 select-none rounded-lg ${
                             isLive ? 'bg-rose-50 border-rose-200 text-rose-700 animate-pulse' : ''
                           }`}>
                             <span>{m.homeScore !== null ? m.homeScore : '-'}</span>
@@ -607,20 +714,20 @@ export default function MatchesList({
                   </div>
 
                   {/* Away Team (Right Side) */}
-                  <div className="col-span-4 sm:col-span-5 flex flex-col sm:flex-row items-center justify-start gap-1.5 sm:gap-3 text-left">
+                  <div className="flex-1 flex items-center justify-start gap-1.5 sm:gap-3 text-left min-w-0">
                     {m.awayFlag && m.awayFlag.startsWith('http') ? (
                       <img 
                         src={m.awayFlag} 
-                        className="w-8 h-8 sm:w-10 sm:h-10 object-contain shrink-0 filter drop-shadow-xs" 
+                        className="w-6 h-6 sm:w-10 sm:h-10 object-contain shrink-0 filter drop-shadow-xs animate-fade-in" 
                         alt={m.awayTeam} 
                         referrerPolicy="no-referrer" 
                       />
                     ) : (
-                      <span className="text-2xl sm:text-3xl filter drop-shadow-xs select-none shrink-0" role="img" aria-label={m.awayTeam}>
+                      <span className="text-xl sm:text-3xl filter drop-shadow-xs select-none shrink-0" role="img" aria-label={m.awayTeam}>
                         {m.awayFlag}
                       </span>
                     )}
-                    <span className="font-extrabold text-[11px] sm:text-sm md:text-base text-slate-900 tracking-tight text-left truncate max-w-[85px] sm:max-w-none select-none leading-tight">
+                    <span className="font-extrabold text-xs sm:text-sm md:text-base text-slate-900 tracking-tight text-left truncate min-w-0 select-none leading-none">
                       {m.awayTeam}
                     </span>
                   </div>
@@ -628,11 +735,13 @@ export default function MatchesList({
                 </div>
 
                 {/* DEDICATED PALPITES (GUESSES) CONTAINER PANEL */}
-                {activeParticipant && !isAdminMode && (
+                {consultedParticipant && !isAdminMode && (
                   <div className={`mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-2 p-2.5 rounded-xl border ${
                     isAdminMode 
                       ? 'bg-amber-50/30 border-amber-200/50' 
-                      : 'bg-slate-50/50 border-slate-200/40'
+                      : isConsultingSelf
+                        ? 'bg-slate-50/50 border-slate-200/40'
+                        : 'bg-indigo-50/40 border-indigo-200/40'
                   }`}>
                     
                     {/* Left label part */}
@@ -640,16 +749,26 @@ export default function MatchesList({
                       <div className={`p-1 rounded-lg border ${
                         isAdminMode 
                           ? 'bg-amber-100/50 text-amber-800 border-amber-250' 
-                          : 'bg-emerald-50 text-emerald-700 border-emerald-150'
+                          : isConsultingSelf
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-150'
+                            : 'bg-indigo-50 border-indigo-250 text-indigo-750'
                       }`}>
-                        <Sparkles className={`w-4 h-4 shrink-0 ${isAdminMode ? 'text-amber-600' : 'text-emerald-600'}`} />
+                        {isConsultingSelf ? (
+                          <Sparkles className={`w-4 h-4 shrink-0 ${isAdminMode ? 'text-amber-600' : 'text-emerald-600'}`} />
+                        ) : (
+                          <Users className="w-4 h-4 shrink-0 text-indigo-650" />
+                        )}
                       </div>
                       <div className="text-left">
                         <span className="text-[9px] uppercase font-black tracking-wider block text-slate-400 select-none">
-                          {isAdminMode ? '🛠️ AJUSTE ADMINISTRATIVO DE PALPITE' : 'Palpite Pessoal de'}
+                          {isAdminMode 
+                            ? '🛠️ AJUSTE ADMINISTRATIVO DE PALPITE' 
+                            : isConsultingSelf
+                              ? 'Meu Palpite Pessoal'
+                              : 'Consultando Palpite de'}
                         </span>
                         <span className="text-slate-755 font-black text-[11px] sm:text-xs">
-                          {activeParticipant.name} ({activeParticipant.avatar})
+                          {consultedParticipant.name} ({consultedParticipant.avatar}) {consultedParticipant.locked && '🔒'}
                         </span>
                       </div>
                     </div>
@@ -660,8 +779,12 @@ export default function MatchesList({
                       <div className="flex items-center gap-2">
                         {hasGuessed ? (
                           <div className="flex items-center gap-2 flex-wrap justify-end">
-                            <span className="text-xs font-mono font-black text-slate-800 bg-white border border-slate-200 px-2.5 py-0.5 rounded-md shadow-3xs select-none">
-                              Palpite: {myGuess.homeScoreGuess} x {myGuess.awayScoreGuess}
+                            <span className={`text-xs font-mono font-black px-2.5 py-0.5 rounded-md shadow-3xs select-none ${
+                              isConsultingSelf 
+                                ? 'text-slate-805 bg-white border border-slate-200' 
+                                : 'text-indigo-950 bg-white border border-indigo-250'
+                            }`}>
+                              Palpite de {consultedParticipant.name}: {myGuess.homeScoreGuess} x {myGuess.awayScoreGuess}
                             </span>
                             
                             {m.homeScore !== null && m.awayScore !== null && (
@@ -690,66 +813,129 @@ export default function MatchesList({
                       </div>
                     ) : (
                       /* Display Editable prediction controls */
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1 bg-white border border-slate-220 px-1 py-0.5 rounded-xl shadow-3xs">
+                      <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto" id={`edit-guess-panel-${m.id}`}>
+                        <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10 p-2 rounded-2xl shadow-xs transition-all select-none">
                           {/* HOME GOAL SLIDERS */}
-                          <div className="flex items-center gap-0.5">
+                          <div className="flex items-center gap-1">
                             <button 
-                              onClick={() => updateGuessDirectly(m.id, 'home', -1)}
-                              className="w-5 h-5 flex items-center justify-center bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-md font-extrabold text-xs select-none cursor-pointer"
+                              type="button"
+                              onClick={() => adjustLocalGuess(m.id, 'home', -1)}
+                              className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 rounded-xl font-black text-sm select-none cursor-pointer transition active:scale-90"
                             >
                               -
                             </button>
                             <input
                               type="text"
-                              value={guessHome}
-                              onChange={(e) => handleGuessInputChange(m.id, 'home', e.target.value)}
-                              className="w-6 text-center font-mono font-black text-xs text-slate-900 bg-transparent outline-none focus:outline-none"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              placeholder="-"
+                              value={localHomeGuesses[m.id] ?? ''}
+                              onChange={(e) => handleInputChange(m.id, 'home', e.target.value)}
+                              className="w-9 text-center font-mono font-black text-sm text-slate-900 bg-transparent outline-none focus:outline-none placeholder-slate-300"
                             />
                             <button 
-                              onClick={() => updateGuessDirectly(m.id, 'home', 1)}
-                              className="w-5 h-5 flex items-center justify-center bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-md font-extrabold text-xs select-none cursor-pointer"
+                              type="button"
+                              onClick={() => adjustLocalGuess(m.id, 'home', 1)}
+                              className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 rounded-xl font-black text-sm select-none cursor-pointer transition active:scale-90"
                             >
                               +
                             </button>
                           </div>
 
-                          <span className="text-slate-300 font-black text-xs px-1">x</span>
+                          <span className="text-slate-400 font-black text-xs px-1 select-none text-center">x</span>
 
                           {/* AWAY GOAL SLIDERS */}
-                          <div className="flex items-center gap-0.5">
+                          <div className="flex items-center gap-1">
                             <button 
-                              onClick={() => updateGuessDirectly(m.id, 'away', -1)}
-                              className="w-5 h-5 flex items-center justify-center bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-705 rounded-md font-extrabold text-xs select-none cursor-pointer"
+                              type="button"
+                              onClick={() => adjustLocalGuess(m.id, 'away', -1)}
+                              className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 rounded-xl font-black text-sm select-none cursor-pointer transition active:scale-90"
                             >
                               -
                             </button>
                             <input
                               type="text"
-                              value={guessAway}
-                              onChange={(e) => handleGuessInputChange(m.id, 'away', e.target.value)}
-                              className="w-6 text-center font-mono font-black text-xs text-slate-900 bg-transparent outline-none focus:outline-none"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              placeholder="-"
+                              value={localAwayGuesses[m.id] ?? ''}
+                              onChange={(e) => handleInputChange(m.id, 'away', e.target.value)}
+                              className="w-9 text-center font-mono font-black text-sm text-slate-900 bg-transparent outline-none focus:outline-none placeholder-slate-300"
                             />
                             <button 
-                              onClick={() => updateGuessDirectly(m.id, 'away', 1)}
-                              className="w-5 h-5 flex items-center justify-center bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-md font-extrabold text-xs select-none cursor-pointer"
+                              type="button"
+                              onClick={() => adjustLocalGuess(m.id, 'away', 1)}
+                              className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 rounded-xl font-black text-sm select-none cursor-pointer transition active:scale-90"
                             >
                               +
                             </button>
                           </div>
                         </div>
 
-                        <div 
-                          className={`text-[10px] font-extrabold px-3 py-1.5 rounded-lg flex items-center gap-1 border transition-all duration-300 select-none ${
-                            justSavedIds[m.id]
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-250 animate-pulse font-bold'
-                              : 'bg-emerald-50/20 text-emerald-700 border-emerald-100'
-                          }`}
-                          id={`auto-saved-badge-${m.id}`}
-                        >
-                          <CheckCircle className={`w-3.5 h-3.5 shrink-0 ${justSavedIds[m.id] ? 'text-emerald-600 animate-bounce' : 'text-emerald-500'}`} />
-                          <span>{justSavedIds[m.id] ? 'Salvo!' : 'Auto-salvo'}</span>
-                        </div>
+                        {/* HIGH-QUALITY MANUAL SAVE BUTTON */}
+                        {(() => {
+                          const valHome = localHomeGuesses[m.id] ?? '';
+                          const valAway = localAwayGuesses[m.id] ?? '';
+                          const isMarked = valHome !== '' && valAway !== '';
+                          
+                          const savedGuess = guesses.find((g) => g.participantId === activeParticipantId && g.matchId === m.id);
+                          const isDirty = !savedGuess || String(savedGuess.homeScoreGuess) !== valHome || String(savedGuess.awayScoreGuess) !== valAway;
+
+                          const isSavedJustNow = !!justSavedIds[m.id];
+
+                          if (isSavedJustNow) {
+                            return (
+                              <button
+                                type="button"
+                                disabled
+                                className="w-full sm:w-auto py-2.5 px-4 rounded-xl text-[11px] font-black uppercase tracking-wider bg-emerald-100 border border-emerald-300 text-emerald-800 flex items-center justify-center gap-1.5 shadow-xs animate-pulse select-none"
+                              >
+                                <CheckCircle className="w-4 h-4 shrink-0 text-emerald-600 animate-bounce" />
+                                <span>Salvo!</span>
+                              </button>
+                            );
+                          }
+
+                          if (!isMarked) {
+                            return (
+                              <button
+                                type="button"
+                                disabled
+                                className="w-full sm:w-auto py-2.5 px-4 rounded-xl text-[11px] font-black uppercase tracking-wider bg-slate-100 border border-slate-200 text-slate-400 flex items-center justify-center gap-1.5 cursor-not-allowed select-none"
+                                title="Preencha o placar acima para liberar a gravação do palpite"
+                              >
+                                <Lock className="w-3.5 h-3.5 shrink-0 text-slate-350" />
+                                <span>Marcar Placar</span>
+                              </button>
+                            );
+                          }
+
+                          if (!isDirty && savedGuess) {
+                            return (
+                              <button
+                                type="button"
+                                disabled
+                                className="w-full sm:w-auto py-2.5 px-4 rounded-xl text-[11px] font-extrabold uppercase tracking-wider bg-emerald-50/50 border border-emerald-250 text-emerald-700 flex items-center justify-center gap-1.5 select-none cursor-default"
+                              >
+                                <CheckCircle className="w-4 h-4 shrink-0 text-emerald-500" />
+                                <span>Palpite Salvo</span>
+                              </button>
+                            );
+                          }
+
+                          // Unsaved modifications exist
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => handleSaveGuessClick(m.id)}
+                              className="w-full sm:w-auto py-2.5 px-5 rounded-xl text-[11px] font-black uppercase tracking-wider bg-gradient-to-b from-emerald-650 to-emerald-850 hover:from-emerald-550 hover:to-emerald-750 text-white ring-2 ring-yellow-450 border border-emerald-500 hover:border-emerald-400 shadow-md shadow-emerald-750/35 flex items-center justify-center gap-1.5 transform active:scale-95 transition-all duration-200 cursor-pointer"
+                              id={`save-guess-btn-${m.id}`}
+                            >
+                              <Save className="w-4 h-4 shrink-0 text-yellow-350" />
+                              <span>Gravar Palpite</span>
+                            </button>
+                          );
+                        })()}
                       </div>
                     )}
 

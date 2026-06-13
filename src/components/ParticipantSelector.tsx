@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserPlus, Trash2, ShieldCheck, Check, Smile, Lock, Unlock, Pencil, Image, Camera } from 'lucide-react';
+import { UserPlus, Trash2, ShieldCheck, Check, Smile, Lock, Unlock, Pencil, Image, Camera, Briefcase, GraduationCap, RefreshCw } from 'lucide-react';
 import { Participant } from '../types';
 import { AVATARS } from '../utils';
 
@@ -7,11 +7,12 @@ interface ParticipantSelectorProps {
   participants: Participant[];
   activeParticipantId: string;
   onSelectParticipant: (id: string) => void;
-  onAddParticipant: (name: string, avatar: string, imageUrl?: string) => void;
+  onAddParticipant: (name: string, avatar: string, imageUrl?: string, role?: 'servidor' | 'estagiario') => void;
   onDeleteParticipant: (id: string) => void;
   isAdminMode?: boolean;
   onUnlockParticipant?: (id: string) => void;
   onUpdateAvatar?: (id: string, avatar: string, imageUrl?: string) => void;
+  onUpdateParticipantRole?: (id: string, role: 'servidor' | 'estagiario') => void;
   onLockGuesses?: () => void;
   onGoToGuesses?: () => void;
 }
@@ -25,12 +26,14 @@ export default function ParticipantSelector({
   isAdminMode,
   onUnlockParticipant,
   onUpdateAvatar,
+  onUpdateParticipantRole,
   onLockGuesses,
   onGoToGuesses,
 }: ParticipantSelectorProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newParticipantName, setNewParticipantName] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('⚽');
+  const [newParticipantRole, setNewParticipantRole] = useState<'servidor' | 'estagiario'>('servidor');
   
   // Registration custom photo states
   const [regAvatarType, setRegAvatarType] = useState<'emoji' | 'image'>('emoji');
@@ -121,11 +124,13 @@ export default function ParticipantSelector({
     onAddParticipant(
       newParticipantName.trim(), 
       regAvatarType === 'emoji' ? selectedAvatar : '⚽', 
-      regAvatarType === 'image' ? regImageUrl : undefined
+      regAvatarType === 'image' ? regImageUrl : undefined,
+      newParticipantRole
     );
     setNewParticipantName('');
     setRegImageUrl('');
     setRegAvatarType('emoji');
+    setNewParticipantRole('servidor');
     setShowAddForm(false);
   };
 
@@ -174,6 +179,36 @@ export default function ParticipantSelector({
               className="w-full text-sm bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/10 rounded-xl px-3.5 py-2 text-slate-850 outline-hidden transition-all placeholder:text-slate-400"
               id="new-participant-input"
             />
+          </div>
+
+          <div className="space-y-1.5 bg-white border border-slate-200/60 p-2.5 rounded-xl">
+            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Vínculo de Inscrição (Taxa)</label>
+            <div className="grid grid-cols-2 gap-1.5 p-0.5 bg-slate-105 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setNewParticipantRole('servidor')}
+                className={`py-1.5 rounded-md text-[10px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                  newParticipantRole === 'servidor'
+                    ? 'bg-emerald-600 text-white shadow-3xs font-black'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Briefcase className="w-3 h-3" />
+                <span>Servidor (R$ 50)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewParticipantRole('estagiario')}
+                className={`py-1.5 rounded-md text-[10px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                  newParticipantRole === 'estagiario'
+                    ? 'bg-emerald-600 text-white shadow-3xs font-black'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <GraduationCap className="w-3 h-3" />
+                <span>Estagiário (R$ 20)</span>
+              </button>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -372,6 +407,15 @@ export default function ParticipantSelector({
                   <div>
                     <h4 className="font-bold text-sm text-slate-850 flex items-center gap-1.5 flex-wrap">
                       {p.name}
+                      {p.role === 'estagiario' ? (
+                        <span className="bg-amber-100 text-amber-800 border border-amber-200/50 text-[9px] px-1.5 py-0.5 rounded-md font-bold flex items-center gap-0.5" title="Taxa: R$ 20,00">
+                          <GraduationCap className="w-2.5 h-2.5" /> Estagiário
+                        </span>
+                      ) : (
+                        <span className="bg-blue-50 text-blue-800 border border-blue-150/40 text-[9px] px-1.5 py-0.5 rounded-md font-bold flex items-center gap-0.5" title="Taxa: R$ 50,00">
+                          <Briefcase className="w-2.5 h-2.5" /> Servidor
+                        </span>
+                      )}
                       {p.isGoogleUser && (
                         <span className="bg-amber-100 text-amber-800 text-[8px] px-1 py-0.2 rounded-xs font-semibold" title={p.email}>
                           Google
@@ -549,7 +593,39 @@ export default function ParticipantSelector({
                     )}
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-1 border-t border-slate-205/65">
+                  {onUpdateParticipantRole && (
+                    <div className="space-y-1 bg-white p-2.5 rounded-xl border border-slate-200 mt-2">
+                      <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block">Alterar Vínculo de Inscrição</span>
+                      <div className="grid grid-cols-2 gap-1 bg-slate-50 p-0.5 rounded-lg border border-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => onUpdateParticipantRole(p.id, 'servidor')}
+                          className={`py-1 rounded text-[9px] font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+                            p.role !== 'estagiario'
+                              ? 'bg-emerald-600 text-white font-black shadow-3xs'
+                              : 'text-slate-500 hover:text-slate-800'
+                          }`}
+                        >
+                          <Briefcase className="w-2.5 h-2.5" />
+                          <span>Servidor (R$ 50)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onUpdateParticipantRole(p.id, 'estagiario')}
+                          className={`py-1 rounded text-[9px] font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+                            p.role === 'estagiario'
+                              ? 'bg-emerald-600 text-white font-black shadow-3xs'
+                              : 'text-slate-500 hover:text-slate-800'
+                          }`}
+                        >
+                          <GraduationCap className="w-2.5 h-2.5" />
+                          <span>Estagiário (R$ 20)</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-205/65 mt-2">
                     <button
                       type="button"
                       onClick={() => setEditingAvatarId(null)}

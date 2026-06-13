@@ -27,7 +27,7 @@ export default function RulesModal({ isOpen, onClose }: RulesModalProps) {
           <button 
             onClick={onClose}
             className="rounded-full p-1 bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
-            aria-label="Fecar"
+            aria-label="Fechar"
             id="close-rules-btn"
           >
             <X className="w-5 h-5" />

@@ -8,7 +8,6 @@ import RulesModal from './components/RulesModal';
 import GoogleLoginCard from './components/GoogleLoginCard';
 import DataBackupCard from './components/DataBackupCard';
 import AdminPasscodeModal from './components/AdminPasscodeModal';
-import LeaderBanner from './components/LeaderBanner';
 import WorldCupTrophy from './components/WorldCupTrophy';
 import { Trophy, HelpCircle, Shield, ShieldAlert, Sparkles, Check, Database, RefreshCw, Star, Calendar, Users, Zap, Cloud, CloudOff, CloudLightning, Key, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -108,13 +107,9 @@ export default function App() {
 
   // Self-healing active participant selection
   useEffect(() => {
-    if (participants.length > 0) {
+    if (activeParticipantId !== '') {
       const activeExists = participants.some((p) => p.id === activeParticipantId);
       if (!activeExists) {
-        setActiveParticipantId(participants[0].id);
-      }
-    } else {
-      if (activeParticipantId !== '') {
         setActiveParticipantId('');
       }
     }
@@ -237,6 +232,7 @@ export default function App() {
           imageUrl: data.imageUrl || '',
           isCustom: true,
           locked: !!data.locked,
+          role: data.role || 'servidor',
         };
 
         fbParticipants.push(p);
@@ -283,7 +279,7 @@ export default function App() {
   };
 
   // Participant Operations
-  const handleAddParticipant = async (name: string, avatar: string, imageUrl?: string) => {
+  const handleAddParticipant = async (name: string, avatar: string, imageUrl?: string, role: 'servidor' | 'estagiario' = 'servidor') => {
     const docId = name.trim().toLowerCase();
     const newP: Participant = {
       id: docId,
@@ -291,6 +287,7 @@ export default function App() {
       avatar,
       imageUrl,
       isCustom: true,
+      role,
     };
 
     // Store in Firebase
@@ -299,11 +296,12 @@ export default function App() {
         nome: name,
         avatar: avatar,
         imageUrl: imageUrl || '',
-        palpites: {}
+        palpites: {},
+        role,
       }, { merge: true });
       setActiveParticipantId(docId);
       setMobileActiveTab('jogos');
-      triggerToast(`🚨 ${name} cadastrado na Nuvem!`);
+      triggerToast(`🚨 ${name} (${role === 'servidor' ? 'Servidor' : 'Estagiário'}) cadastrado na Nuvem!`);
     } catch (err) {
       console.error("Erro ao cadastrar na nuvem:", err);
       // Fallback local write
@@ -354,11 +352,8 @@ export default function App() {
 
   const handleGoogleLogout = () => {
     const googleUser = participants.find((p) => p.id === activeParticipantId);
+    setActiveParticipantId('');
     if (googleUser) {
-      const fallbacks = participants.filter((p) => p.id !== activeParticipantId);
-      if (fallbacks.length > 0) {
-        setActiveParticipantId(fallbacks[0].id);
-      }
       triggerToast(`🚪 Sessão de ${googleUser.name} finalizada.`);
     }
   };
@@ -529,6 +524,31 @@ export default function App() {
       }, { merge: true });
     } catch (err) {
       console.error("Erro ao atualizar avatar no Firebase (silencioso, salvo em cache local):", err);
+    }
+  };
+
+  const handleUpdateRole = async (pId: string, role: 'servidor' | 'estagiario') => {
+    const target = participants.find((p) => p.id === pId);
+    if (!target) return;
+
+    // Update state
+    const updatedParticipants = participants.map((p) => {
+      if (p.id === pId) {
+        return { ...p, role };
+      }
+      return p;
+    });
+    setParticipants(updatedParticipants);
+
+    // Sync to database
+    try {
+      await setDoc(doc(db, "usuarios", pId), {
+        role,
+      }, { merge: true });
+      triggerToast(`💸 Categoria de ${target.name} definida como ${role === 'servidor' ? 'Servidor' : 'Estagiário'}!`);
+    } catch (err) {
+      console.error("Erro ao atualizar categoria no Firebase:", err);
+      triggerToast(`💸 Categoria de ${target.name} alterada localmente.`);
     }
   };
 
@@ -1018,7 +1038,7 @@ export default function App() {
       </div>
 
       {/* Top Glassmorphic Navigation Banner */}
-      <header className="sticky top-0 z-40 bg-emerald-800 backdrop-blur-md border-b-2 border-yellow-400 px-4 py-3.5 sm:px-6 text-white shadow-md overflow-hidden" id="app-header">
+      <header className="sticky top-0 z-40 bg-emerald-800 backdrop-blur-md border-b border-yellow-400/80 px-4 py-2 sm:px-6 text-white shadow-md overflow-hidden" id="app-header">
         
         {/* Subtle Soccer Field lines overlay in the header */}
         <div className="absolute inset-0 opacity-[0.08] pointer-events-none select-none">
@@ -1036,52 +1056,89 @@ export default function App() {
           </svg>
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
+        <div className="relative z-10 max-w-7xl mx-auto flex flex-row justify-between items-center gap-2 flex-wrap">
           {/* Logo Title */}
-          <div className="flex items-center gap-3">
-            <div className="p-1.5 px-2 bg-gradient-to-b from-white/20 to-white/5 rounded-2xl border border-white/20 flex items-center justify-center shadow-inner group hover:scale-105 transition-transform duration-300">
-              <WorldCupTrophy className="w-10 h-10 animate-pulse" />
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-1 bg-gradient-to-b from-white/20 to-white/5 rounded-xl border border-white/15 flex items-center justify-center shadow-inner group shrink-0">
+              <WorldCupTrophy className="w-7 h-7 sm:w-8 h-8 animate-pulse" />
             </div>
-            <div>
-              <h1 className="font-extrabold text-base sm:text-lg tracking-tight text-white">
+            <div className="min-w-0">
+              <h1 className="font-black text-sm sm:text-base tracking-tight text-white leading-tight truncate">
                 BOLÃO COPA DO MUNDO 2026
               </h1>
-              <div className="flex items-center flex-wrap gap-2 mt-0.5">
-                <p className="text-[10px] text-emerald-100 uppercase tracking-wider font-semibold">
-                  Ranking Automático & Palpites da Copa
+              <div className="flex items-center flex-wrap gap-1.5 mt-0.5">
+                <p className="text-[9px] text-emerald-100/90 uppercase tracking-tighter sm:tracking-wider font-bold">
+                  Palpites & Ranking
                 </p>
-                <div className="hidden xs:block h-3 w-[1px] bg-emerald-600" />
+                <div className="hidden xs:block h-2 w-[1px] bg-emerald-600/60" />
                 {cloudStatus === 'synced' && (
-                  <span className="text-[9px] bg-emerald-500/20 text-emerald-250 font-mono font-bold px-1.5 py-0.2 rounded-xs border border-emerald-500/20 flex items-center gap-1" title="Sincronizado em tempo real com o Firestore bolao-da-copa-ff854">
-                    <Cloud className="w-2.5 h-2.5 text-emerald-250 shrink-0" />
-                    <span>NUVEM ATIVA</span>
+                  <span className="text-[8px] bg-emerald-500/20 text-emerald-250 font-mono font-black px-1.5 py-0.2 rounded-sm border border-emerald-500/20 flex items-center gap-0.5" title="Sincronizado em tempo real com o Firestore">
+                    <Cloud className="w-2 h-2 text-emerald-250 shrink-0" />
+                    <span>NUVEM</span>
                   </span>
                 )}
                 {cloudStatus === 'connecting' && (
-                  <span className="text-[9px] bg-amber-500/20 text-amber-200 font-mono font-bold px-1.5 py-0.2 rounded-xs border border-amber-500/20 flex items-center gap-1 animate-pulse">
-                    <CloudLightning className="w-2.5 h-2.5 text-amber-200 shrink-0" />
+                  <span className="text-[8px] bg-amber-500/20 text-amber-200 font-mono font-black px-1.5 py-0.2 rounded-sm border border-amber-500/20 flex items-center gap-0.5 animate-pulse">
+                    <CloudLightning className="w-2 h-2 text-amber-200 shrink-0" />
                     <span>CONECTANDO...</span>
                   </span>
                 )}
                 {cloudStatus === 'offline' && (
-                  <span className="text-[9px] bg-white/10 text-slate-200 font-mono font-bold px-1.5 py-0.2 rounded-xs border border-white/10 flex items-center gap-1">
-                    <CloudOff className="w-2.5 h-2.5 text-slate-200 shrink-0" />
-                    <span>MODO LOCAL</span>
+                  <span className="text-[8px] bg-white/10 text-slate-200 font-mono font-black px-1.5 py-0.2 rounded-sm border border-white/10 flex items-center gap-0.5">
+                    <CloudOff className="w-2 h-2 text-slate-200 shrink-0" />
+                    <span>LOCAL</span>
                   </span>
                 )}
               </div>
             </div>
           </div>
 
+          {/* Active Participant Profile Badge in the Header */}
+          {activeParticipant ? (
+            <div 
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-white/10 hover:bg-white/15 border border-white/15 hover:border-white/30 rounded-full transition-all cursor-pointer shadow-3xs hover:scale-103 active:scale-95 shrink-0"
+              onClick={() => {
+                const tabBtn = document.getElementById('tab-btn-perfil') || document.getElementById('mobile-tab-perfil');
+                if (tabBtn) tabBtn.click();
+              }}
+              title="Meu Perfil - Clique para ver detalhes"
+            >
+              <span className="text-[13px] sm:text-[15px] leading-none select-none filter drop-shadow-xs">
+                {activeParticipant.avatar || '⚽'}
+              </span>
+              <span className="text-[10px] sm:text-xs font-black text-amber-300 tracking-wide uppercase truncate max-w-[80px] xs:max-w-[120px]">
+                {activeParticipant.name}
+              </span>
+              <span className="relative flex h-1.5 w-1.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400"></span>
+              </span>
+            </div>
+          ) : (
+            <div 
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-black/25 hover:bg-black/35 border border-white/5 rounded-full transition-all cursor-pointer text-slate-300 hover:text-white hover:scale-103 active:scale-95 shrink-0"
+              onClick={() => {
+                const tabBtn = document.getElementById('tab-btn-perfil') || document.getElementById('mobile-tab-perfil');
+                if (tabBtn) tabBtn.click();
+              }}
+              title="Criar Perfil - Clique para cadastrar seu perfil"
+            >
+              <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse" />
+              <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-350">
+                Sem Perfil (Visitante)
+              </span>
+            </div>
+          )}
+
           {/* Quick Stats Summary */}
-          <div className="flex items-center flex-wrap justify-center gap-2 text-xs">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={() => setIsRulesOpen(true)}
-              className="px-3 py-1.5 rounded-lg bg-emerald-900 hover:bg-emerald-700 text-white flex items-center gap-1.5 border border-yellow-400/30 cursor-pointer transition-colors"
+              className="px-2 py-1 rounded-lg bg-emerald-900 hover:bg-emerald-700 text-white flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide border border-yellow-405/20 cursor-pointer transition-colors shrink-0"
               id="open-rules-btn"
             >
-              <HelpCircle className="w-4 h-4 text-yellow-300" />
-              <span>Regras de Pontos</span>
+              <HelpCircle className="w-3.5 h-3.5 text-yellow-300" />
+              <span className="hidden xs:inline">Regras</span>
             </button>
 
             <button
@@ -1093,24 +1150,24 @@ export default function App() {
                   setIsPasscodeModalOpen(true);
                 }
               }}
-              className={`px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 border cursor-pointer transition-all ${
+              className={`px-2 py-1 rounded-lg font-bold text-[10px] uppercase tracking-wide flex items-center gap-1 border cursor-pointer transition-all shrink-0 ${
                 isAdminMode
                   ? 'bg-amber-500 text-slate-950 border-amber-400'
-                  : 'bg-emerald-900 hover:bg-emerald-700 text-white border-yellow-400/30'
+                  : 'bg-emerald-900 hover:bg-emerald-700 text-white border-yellow-405/20'
               }`}
               id="toggle-admin-btn"
             >
-              {isAdminMode ? <ShieldAlert className="w-4 h-4 text-slate-950" /> : <Shield className="w-4 h-4 text-yellow-300" />}
-              <span>{isAdminMode ? 'Sair do Painel Admin' : 'Painel Admin'}</span>
+              {isAdminMode ? <ShieldAlert className="w-3.5 h-3.5 text-slate-950" /> : <Shield className="w-3.5 h-3.5 text-yellow-300" />}
+              <span>{isAdminMode ? 'Sair Admin' : 'Admin'}</span>
             </button>
 
             <button
               onClick={handleResetDatabaseAll}
-              className="p-1.5 rounded-lg bg-emerald-900 hover:bg-red-750 text-red-100 border border-emerald-750 transition cursor-pointer"
+              className="p-1 rounded-lg bg-emerald-900 hover:bg-red-750 text-red-105 border border-emerald-750/30 transition cursor-pointer shrink-0"
               title="Resetar Banco de Dados completo do Bolão"
               id="wipe-db-btn"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -1133,9 +1190,6 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Celebrating 1st Place Champion banner when accessed */}
-        <LeaderBanner participants={participants} scores={scoresLeaderboard} />
 
         {/* Two Columns Dashboard */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" id="dashboard-columns-grid">
@@ -1172,6 +1226,7 @@ export default function App() {
                 isAdminMode={isAdminMode}
                 onUnlockParticipant={handleUnlockParticipant}
                 onUpdateAvatar={handleUpdateAvatar}
+                onUpdateParticipantRole={handleUpdateRole}
                 onLockGuesses={handleLockGuesses}
                 onGoToGuesses={() => setMobileActiveTab('jogos')}
               />
