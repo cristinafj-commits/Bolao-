@@ -99,7 +99,11 @@ export default function MatchesList({
       (g) =>
         g.participantId === activeParticipantId &&
         g.homeScoreGuess !== null &&
-        g.homeScoreGuess !== undefined
+        g.homeScoreGuess !== undefined &&
+        String(g.homeScoreGuess).trim() !== '' &&
+        g.awayScoreGuess !== null &&
+        g.awayScoreGuess !== undefined &&
+        String(g.awayScoreGuess).trim() !== ''
     );
     return Math.max(0, matches.length - activeGuesses.length);
   }, [guesses, activeParticipantId, matches.length]);

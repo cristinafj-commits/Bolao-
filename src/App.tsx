@@ -14,6 +14,17 @@ import { motion, AnimatePresence } from 'motion/react';
 import { db, doc, setDoc, onSnapshot, collection } from './firebase';
 
 export default function App() {
+  // One-time cleanup of previously created profiles in the initial version
+  if (typeof window !== 'undefined') {
+    const isCleaned = localStorage.getItem('bolao_cleaned_version_v3');
+    if (isCleaned !== 'true') {
+      localStorage.removeItem('bolao_participants');
+      localStorage.removeItem('bolao_guesses');
+      localStorage.removeItem('bolao_active_id');
+      localStorage.setItem('bolao_cleaned_version_v3', 'true');
+    }
+  }
+
   // Load initial states from localStorage if available, or fallbacks
   const [participants, setParticipants] = useState<Participant[]>(() => {
     const saved = localStorage.getItem('bolao_participants');
@@ -1217,19 +1228,36 @@ export default function App() {
               />
               
               {/* Participant selector engine */}
-              <ParticipantSelector
-                participants={participants}
-                activeParticipantId={activeParticipantId}
-                onSelectParticipant={handleSelectParticipant}
-                onAddParticipant={handleAddParticipant}
-                onDeleteParticipant={handleDeleteParticipant}
-                isAdminMode={isAdminMode}
-                onUnlockParticipant={handleUnlockParticipant}
-                onUpdateAvatar={handleUpdateAvatar}
-                onUpdateParticipantRole={handleUpdateRole}
-                onLockGuesses={handleLockGuesses}
-                onGoToGuesses={() => setMobileActiveTab('jogos')}
-              />
+              {(() => {
+                const activeGuessesOfParticipant = guesses.filter(
+                  (g) =>
+                    g.participantId === activeParticipantId &&
+                    g.homeScoreGuess !== null &&
+                    g.homeScoreGuess !== undefined &&
+                    String(g.homeScoreGuess).trim() !== '' &&
+                    g.awayScoreGuess !== null &&
+                    g.awayScoreGuess !== undefined &&
+                    String(g.awayScoreGuess).trim() !== ''
+                );
+                const pUnfilledCount = activeParticipantId ? Math.max(0, matches.length - activeGuessesOfParticipant.length) : 0;
+
+                return (
+                  <ParticipantSelector
+                    participants={participants}
+                    activeParticipantId={activeParticipantId}
+                    onSelectParticipant={handleSelectParticipant}
+                    onAddParticipant={handleAddParticipant}
+                    onDeleteParticipant={handleDeleteParticipant}
+                    isAdminMode={isAdminMode}
+                    onUnlockParticipant={handleUnlockParticipant}
+                    onUpdateAvatar={handleUpdateAvatar}
+                    onUpdateParticipantRole={handleUpdateRole}
+                    onLockGuesses={handleLockGuesses}
+                    onGoToGuesses={() => setMobileActiveTab('jogos')}
+                    unfilledCount={pUnfilledCount}
+                  />
+                );
+              })()}
 
               {/* Local offline storage backup control card */}
               {isAdminMode && (

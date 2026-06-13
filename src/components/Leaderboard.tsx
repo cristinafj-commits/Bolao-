@@ -10,7 +10,10 @@ interface LeaderboardProps {
   activeParticipantId: string;
 }
 
-export default function Leaderboard({ participants, scores, activeParticipantId }: LeaderboardProps) {
+export default function Leaderboard({ participants, scores: rawScores, activeParticipantId }: LeaderboardProps) {
+  // Only include participants who have complete guesses
+  const scores = rawScores.filter((s) => !s.isIncomplete);
+
   const firstStat = scores[0];
   const secondStat = scores[1];
   const thirdStat = scores[2];
@@ -19,7 +22,7 @@ export default function Leaderboard({ participants, scores, activeParticipantId 
   const secondParticipant = secondStat ? participants.find((p) => p.id === secondStat.participantId) : null;
   const thirdParticipant = thirdStat ? participants.find((p) => p.id === thirdStat.participantId) : null;
 
-  const [activeTab, setActiveTab] = useState<'classificacao' | 'premiacao'>('classificacao');
+  const [activeTab, setActiveTab ] = useState<'classificacao' | 'premiacao'>('classificacao');
 
   const renderLeaderPhrase = (name: string, points: number, id: string) => {
     // Deterministic index determination based on leader ID and name
@@ -379,52 +382,61 @@ export default function Leaderboard({ participants, scores, activeParticipantId 
             {/* Dynamic Table Body with spring layout reordering */}
             <div className="divide-y divide-slate-100 bg-white">
               <AnimatePresence mode="popLayout">
-                {scores.map((stat, index) => {
-                  const participant = participants.find((p) => p.id === stat.participantId);
-                  if (!participant) return null;
+                {scores.length === 0 ? (
+                  <div className="p-8 text-center text-slate-500 space-y-2">
+                    <Trophy className="w-10 h-10 text-slate-300 mx-auto opacity-60 animate-pulse" />
+                    <p className="font-extrabold text-sm text-slate-700">Nenhum participante pontuou ainda!</p>
+                    <p className="text-xs text-slate-450 max-w-xs mx-auto leading-relaxed">
+                      Os pontos e o ranking geral serão atualizados assim que os jogos oficiais iniciarem e os palpites completos forem validados.
+                    </p>
+                  </div>
+                ) : (
+                  scores.map((stat, index) => {
+                    const participant = participants.find((p) => p.id === stat.participantId);
+                    if (!participant) return null;
 
-                  const isCurrentUser = participant.id === activeParticipantId;
-                  const rank = index + 1;
+                    const isCurrentUser = participant.id === activeParticipantId;
+                    const rank = index + 1;
 
-                  // Position styling and medals for list view
-                  let rankBadge = (
-                    <span className="font-mono font-black text-slate-450 text-[11px]">{rank}º</span>
-                  );
-                  if (rank === 1) {
-                    rankBadge = (
-                      <span className="inline-flex items-center justify-center w-5.5 h-5.5 rounded-full bg-amber-500 text-[10px] font-black text-slate-950 ring-2 ring-amber-400">
-                        🥇
-                      </span>
+                    // Position styling and medals for list view
+                    let rankBadge = (
+                      <span className="font-mono font-black text-slate-450 text-[11px]">{rank}º</span>
                     );
-                  } else if (rank === 2) {
-                    rankBadge = (
-                      <span className="inline-flex items-center justify-center w-5.5 h-5.5 rounded-full bg-slate-200 text-[10px] font-black text-slate-800 ring-2 ring-slate-350">
-                        🥈
-                      </span>
-                    );
-                  } else if (rank === 3) {
-                    rankBadge = (
-                      <span className="inline-flex items-center justify-center w-5.5 h-5.5 rounded-full bg-amber-705 text-[10px] font-black text-white ring-2 ring-amber-600">
-                        🥉
-                      </span>
-                    );
-                  }
+                    if (rank === 1) {
+                      rankBadge = (
+                        <span className="inline-flex items-center justify-center w-5.5 h-5.5 rounded-full bg-amber-500 text-[10px] font-black text-slate-950 ring-2 ring-amber-400">
+                          🥇
+                        </span>
+                      );
+                    } else if (rank === 2) {
+                      rankBadge = (
+                        <span className="inline-flex items-center justify-center w-5.5 h-5.5 rounded-full bg-slate-200 text-[10px] font-black text-slate-800 ring-2 ring-slate-350">
+                          🥈
+                        </span>
+                      );
+                    } else if (rank === 3) {
+                      rankBadge = (
+                        <span className="inline-flex items-center justify-center w-5.5 h-5.5 rounded-full bg-amber-705 text-[10px] font-black text-white ring-2 ring-amber-600">
+                          🥉
+                        </span>
+                      );
+                    }
 
-                  return (
-                    <motion.div
-                      key={participant.id}
-                      layoutId={`rank-${participant.id}`}
-                      transition={{ type: 'spring', damping: 22, stiffness: 105 }}
-                      className={`grid grid-cols-12 gap-2 px-4 py-3.5 items-center hover:bg-emerald-50/25 transition-colors ${
-                        isCurrentUser 
-                          ? 'bg-linear-to-r from-emerald-500/8 to-emerald-500/1 border-l-4 border-l-emerald-500 font-medium' 
-                          : ''
-                      }`}
-                    >
-                      {/* Rank Badge */}
-                      <div className="col-span-2 flex justify-center">
-                        {rankBadge}
-                      </div>
+                    return (
+                      <motion.div
+                        key={participant.id}
+                        layoutId={`rank-${participant.id}`}
+                        transition={{ type: 'spring', damping: 22, stiffness: 105 }}
+                        className={`grid grid-cols-12 gap-2 px-4 py-3.5 items-center hover:bg-emerald-50/25 transition-colors ${
+                          isCurrentUser 
+                            ? 'bg-linear-to-r from-emerald-500/8 to-emerald-500/1 border-l-4 border-l-emerald-500 font-medium' 
+                            : ''
+                        }`}
+                      >
+                        {/* Rank Badge */}
+                        <div className="col-span-2 flex justify-center">
+                          {rankBadge}
+                        </div>
 
                       {/* Participant Details */}
                       <div className="col-span-4 flex items-center gap-1.5 sm:gap-2.5 min-w-0 pl-2 sm:pl-3">
@@ -448,17 +460,31 @@ export default function Leaderboard({ participants, scores, activeParticipantId 
                         )}
                         
                         <div className="min-w-0 text-left">
-                          <h4 className={`text-xs text-slate-900 truncate flex items-center gap-1.5 ${isCurrentUser ? 'font-extrabold' : 'font-bold'}`}>
+                          <h4 className={`text-xs text-slate-900 truncate flex items-center gap-1.5 flex-wrap ${isCurrentUser ? 'font-extrabold' : 'font-bold'}`}>
                             <span>{participant.name}</span>
                             {isCurrentUser && (
                               <span className="text-[8px] bg-emerald-500/15 text-emerald-800 border border-emerald-500/20 px-1 py-0.2 rounded-xs font-bold leading-none shrink-0">
                                 Você
                               </span>
                             )}
+                            {stat.isIncomplete && (
+                              <span 
+                                className="text-[8px] bg-amber-100 text-amber-900 border border-amber-250 px-1.5 py-0.5 rounded font-black leading-none shrink-0 cursor-help"
+                                title="Os pontos deste participante não entrarão na contagem e classificação até que lance todos os palpites do Bolão!"
+                              >
+                                ⚠️ Incompleto
+                              </span>
+                            )}
                           </h4>
-                          <p className="text-[10px] text-slate-450 font-mono mt-0.5 truncate uppercase">
-                            {stat.exactScores} exato{stat.exactScores !== 1 ? 's' : ''} • {stat.correctOutcomes} parcial{stat.correctOutcomes !== 1 ? 'es' : ''}
-                          </p>
+                          {stat.isIncomplete ? (
+                            <p className="text-[9.5px] text-amber-600 font-extrabold mt-0.5 truncate uppercase">
+                              🚫 Classificação congelada (Falta palpitar jogos!)
+                            </p>
+                          ) : (
+                            <p className="text-[10px] text-slate-450 font-mono mt-0.5 truncate uppercase">
+                              {stat.exactScores} exato{stat.exactScores !== 1 ? 's' : ''} • {stat.correctOutcomes} parcial{stat.correctOutcomes !== 1 ? 'es' : ''}
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -475,7 +501,13 @@ export default function Leaderboard({ participants, scores, activeParticipantId 
 
                       {/* Dynamic Total Points */}
                       <div className="col-span-2 text-right pr-2">
-                        <div className={`font-mono leading-none tracking-tight ${isCurrentUser ? 'text-lg font-black text-emerald-650' : 'text-sm sm:text-base font-extrabold text-slate-800'}`}>
+                        <div className={`font-mono leading-none tracking-tight ${
+                          stat.isIncomplete 
+                            ? 'text-slate-400 font-bold text-xs line-through' 
+                            : isCurrentUser 
+                              ? 'text-lg font-black text-emerald-650' 
+                              : 'text-sm sm:text-base font-extrabold text-slate-800'
+                        }`}>
                           {stat.points}
                         </div>
                         <div className="text-[8px] uppercase font-black text-slate-400 tracking-wider mt-0.5 select-none leading-none">
@@ -485,7 +517,7 @@ export default function Leaderboard({ participants, scores, activeParticipantId 
 
                     </motion.div>
                   );
-                })}
+                }))}
               </AnimatePresence>
             </div>
 

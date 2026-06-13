@@ -45,6 +45,7 @@ export interface ParticipantScores {
     outcome: number; // count of matches
     zero: number; // count of matches
   };
+  isIncomplete?: boolean;
 }
 
 export interface SimulationEvent {
