@@ -27,15 +27,37 @@ export function collection(dbInstance: any, path: string) {
   return { type: 'collection', path };
 }
 
+// Helper to clean undefined values recursively before saving to Realtime Database
+function sanitizeData(val: any): any {
+  if (val === undefined) {
+    return null;
+  }
+  if (val === null) {
+    return null;
+  }
+  if (Array.isArray(val)) {
+    return val.map(sanitizeData);
+  }
+  if (typeof val === 'object') {
+    const cleaned: any = {};
+    for (const key of Object.keys(val)) {
+      cleaned[key] = sanitizeData(val[key]);
+    }
+    return cleaned;
+  }
+  return val;
+}
+
 // Simple setDoc adapter supporting { merge: true } options of Firestore
 export async function setDoc(docObj: any, data: any, options?: { merge?: boolean }) {
+  const sanitized = sanitizeData(data);
   if (options?.merge) {
     const snapshot = await get(ref(db, docObj.path));
     const existing = snapshot.val() || {};
-    const merged = { ...existing, ...data };
-    await set(ref(db, docObj.path), merged);
+    const merged = { ...existing, ...sanitized };
+    await set(ref(db, docObj.path), sanitizeData(merged));
   } else {
-    await set(ref(db, docObj.path), data);
+    await set(ref(db, docObj.path), sanitized);
   }
 }
 

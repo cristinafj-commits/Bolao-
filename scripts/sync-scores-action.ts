@@ -97,6 +97,27 @@ const matchExistingByTeamNames = (localMatch: LocalMatch, remoteMatches: any[]) 
   });
 };
 
+// Helper to clean undefined values recursively before saving to Realtime Database
+const sanitizeForFirebase = (val: any): any => {
+  if (val === undefined) {
+    return null;
+  }
+  if (val === null) {
+    return null;
+  }
+  if (Array.isArray(val)) {
+    return val.map(sanitizeForFirebase);
+  }
+  if (typeof val === 'object') {
+    const cleaned: any = {};
+    for (const key of Object.keys(val)) {
+      cleaned[key] = sanitizeForFirebase(val[key]);
+    }
+    return cleaned;
+  }
+  return val;
+};
+
 async function syncScores() {
   const apiKey = process.env.FOOTBALL_DATA_API_KEY;
   if (!apiKey) {
@@ -123,21 +144,34 @@ async function syncScores() {
         id: m.id,
         teamA: m.homeTeam,
         teamB: m.awayTeam,
-        scoreA: m.homeScore,
-        scoreB: m.awayScore,
+        scoreA: m.homeScore === undefined ? null : m.homeScore,
+        scoreB: m.awayScore === undefined ? null : m.awayScore,
         date: m.date,
         status: m.status as any,
-        minute: m.minute,
-        group: m.group,
-        homeFlag: m.homeFlag,
-        awayFlag: m.awayFlag
+        minute: m.minute === undefined ? 0 : m.minute,
+        group: m.group || '',
+        homeFlag: m.homeFlag || '',
+        awayFlag: m.awayFlag || ''
       }));
-      await set(ref(db, "config/jogos"), { lista: converted });
-      currentMatches = converted;
+      await set(ref(db, "config/jogos"), { lista: sanitizeForFirebase(converted) });
+      currentMatches = converted as LocalMatch[];
       console.log(`✅ Banco inicializado com sucesso com ${converted.length} jogos.`);
     } else {
       const val = snapshot.val();
-      currentMatches = val.lista || [];
+      const list = val.lista || [];
+      currentMatches = list.map((m: any) => ({
+        id: m.id || '',
+        teamA: m.teamA || '',
+        teamB: m.teamB || '',
+        scoreA: m.scoreA === undefined || m.scoreA === null ? null : m.scoreA,
+        scoreB: m.scoreB === undefined || m.scoreB === null ? null : m.scoreB,
+        date: m.date || '',
+        status: m.status || 'SCHEDULED',
+        minute: m.minute !== undefined ? m.minute : 0,
+        group: m.group || '',
+        homeFlag: m.homeFlag || '',
+        awayFlag: m.awayFlag || ''
+      }));
       console.log(`✅ Foram encontrados ${currentMatches.length} jogos locais no Realtime Database.`);
     }
 
@@ -206,7 +240,8 @@ async function syncScores() {
 
     // 4. Save updated results to Realtime Database
     console.log(`💾 Gravando novos dados no Realtime Database (${updatedCount} partidas atualizadas)...`);
-    await set(ref(db, "config/jogos"), { lista: updatedList });
+    const sanitizedList = sanitizeForFirebase(updatedList);
+    await set(ref(db, "config/jogos"), { lista: sanitizedList });
     console.log("🎉 Sucesso! Robô rodou e sincronizou os jogos com maestria.");
     process.exit(0);
 
