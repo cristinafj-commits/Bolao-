@@ -847,7 +847,7 @@ export default function MatchesList({
               }`}
               id={`match-card-${m.id}`}
             >
-              {/* Header info */}
+               {/* Header info */}
                <div className="bg-emerald-50/40 px-4 py-2.5 flex justify-between items-center text-xs border-b border-emerald-100/40">
                 <span className="text-slate-500 font-bold uppercase tracking-wider">{m.group}</span>
                 <div className="flex items-center gap-1.5">
@@ -863,20 +863,20 @@ export default function MatchesList({
                     </span>
                   )}
                   {isScheduled && (
-                    <span className="text-slate-505 font-semibold tracking-tight animate-fade-in" id={`date-${m.id}`}>
+                    <span className="text-slate-600 font-bold tracking-tight animate-fade-in text-[11px] sm:text-xs" id={`date-${m.id}`}>
                       {m.date}
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Teams, Inputs, and Scores Display Symmetrical Layout */}
-              <div className="p-4 sm:p-5" id={`match-${m.id}-dashboard`}>
+               {/* Teams, Inputs, and Scores Display Symmetrical Layout */}
+               <div className="p-4 sm:p-5" id={`match-${m.id}-dashboard`}>
                 <div className="flex items-center justify-between gap-1.5 sm:gap-4 w-full">
                   
                   {/* Home Team (Left Side) */}
                   <div className="flex-1 flex items-center justify-end gap-1.5 sm:gap-3 text-right min-w-0">
-                    <span className="font-extrabold text-xs sm:text-sm md:text-base text-slate-900 tracking-tight text-right truncate min-w-0 select-none leading-none">
+                    <span className="font-extrabold text-[13px] xs:text-sm sm:text-sm md:text-base text-slate-900 tracking-tight text-right truncate min-w-0 select-none leading-none">
                       {m.homeTeam}
                     </span>
                     {m.homeFlag && m.homeFlag.startsWith('http') ? (
@@ -927,11 +927,11 @@ export default function MatchesList({
                     ) : (
                       /* OFFICIAL GAME SCOREBOARD */
                       <div className="flex flex-col items-center gap-1">
-                        <span className="text-[8px] font-extrabold text-slate-400 tracking-wider uppercase select-none whitespace-nowrap">
+                        <span className="text-[9px] font-black text-slate-500 tracking-wider uppercase select-none whitespace-nowrap">
                           Placar Oficial
                         </span>
                         {isScheduled ? (
-                          <div className="text-slate-400 font-black text-[11px] sm:text-xs bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg select-none">
+                          <div className="text-slate-500 font-black text-[11px] sm:text-xs bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg select-none">
                             VS
                           </div>
                         ) : (
@@ -961,7 +961,7 @@ export default function MatchesList({
                         {m.awayFlag}
                       </span>
                     )}
-                    <span className="font-extrabold text-xs sm:text-sm md:text-base text-slate-900 tracking-tight text-left truncate min-w-0 select-none leading-none">
+                    <span className="font-extrabold text-[13px] xs:text-sm sm:text-sm md:text-base text-slate-900 tracking-tight text-left truncate min-w-0 select-none leading-none">
                       {m.awayTeam}
                     </span>
                   </div>
@@ -1001,8 +1001,19 @@ export default function MatchesList({
                               ? 'Meu Palpite Pessoal'
                               : 'Consultando Palpite de'}
                         </span>
-                        <span className="text-slate-755 font-black text-[11px] sm:text-xs">
-                          {consultedParticipant.name} ({consultedParticipant.avatar}) {consultedParticipant.locked && '🔒'}
+                        <span className="text-slate-755 font-black text-[11px] sm:text-xs flex items-center gap-1.5 flex-wrap">
+                          {consultedParticipant.imageUrl ? (
+                            <img 
+                              src={consultedParticipant.imageUrl} 
+                              alt={consultedParticipant.name} 
+                              referrerPolicy="no-referrer"
+                              className="w-4 h-4 rounded-full object-cover border border-slate-200 inline" 
+                            />
+                          ) : (
+                            <span>{consultedParticipant.avatar}</span>
+                          )}
+                          <span>{consultedParticipant.name}</span>
+                          {consultedParticipant.locked && <span>🔒</span>}
                         </span>
                       </div>
                     </div>
@@ -1048,6 +1059,23 @@ export default function MatchesList({
                     ) : (
                       /* Display Editable prediction controls */
                       <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto" id={`edit-guess-panel-${m.id}`}>
+                        {m.homeScore !== null && m.awayScore !== null && hasGuessed && (
+                          <div className="inline-flex shrink-0">
+                            {scoreResult.points === 3 ? (
+                              <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-black px-2.5 py-1 rounded-lg select-none shadow-3xs flex items-center gap-1">
+                                🥇 +3 pts (Exato!)
+                              </span>
+                            ) : scoreResult.points === 1 ? (
+                              <span className="bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-black px-2.5 py-1 rounded-lg select-none shadow-3xs flex items-center gap-1">
+                                🥈 +1 pt (Parcial)
+                              </span>
+                            ) : (
+                              <span className="bg-slate-100 text-slate-500 border border-slate-250 text-[10px] font-bold px-2.5 py-1 rounded-lg select-none shadow-3xs flex items-center gap-1">
+                                0 pts
+                              </span>
+                            )}
+                          </div>
+                        )}
                         <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10 p-2 rounded-2xl shadow-xs transition-all select-none">
                           {/* HOME GOAL SLIDERS */}
                           <div className="flex items-center gap-1">
@@ -1295,7 +1323,16 @@ export default function MatchesList({
                           }`}
                         >
                           <div className="flex items-center gap-2">
-                            <span className="text-base">{player.avatar}</span>
+                            {player.imageUrl ? (
+                              <img 
+                                src={player.imageUrl} 
+                                alt={player.name} 
+                                referrerPolicy="no-referrer"
+                                className="w-5 h-5 rounded-full object-cover border border-slate-200 shrink-0" 
+                              />
+                            ) : (
+                              <span className="text-sm">{player.avatar}</span>
+                            )}
                             <span className="truncate max-w-[100px] font-bold">
                               {player.name} {isSelf && '(Você)'}
                             </span>

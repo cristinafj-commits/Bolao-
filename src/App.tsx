@@ -154,47 +154,6 @@ export default function App() {
       if (snapshot.exists()) {
         const fbMatches = snapshot.data().lista;
         if (Array.isArray(fbMatches)) {
-          // Check if the list contains API-imported games (IDs starting with "fd-")
-          const hasApiMatches = fbMatches.some((m: any) => m && m.id && m.id.toString().startsWith('fd-'));
-
-          // We only trigger auto-healing/upgrade for local/test matches (not API imported ones)
-          let needsHealing = false;
-          let hasOutdated = false;
-
-          if (!hasApiMatches) {
-            hasOutdated = fbMatches.length < 72 || fbMatches.some((m: any) => 
-              (m.id === 'm0' && (m.teamB === 'Dinamarca' || m.awayTeam === 'Dinamarca')) ||
-              (m.id === 'm1' && (m.teamB === 'Suécia' || m.awayTeam === 'Suécia'))
-            );
-            needsHealing = fbMatches.length < initialMatches.length || hasOutdated;
-          }
-
-          if (needsHealing) {
-            const upgraded = initialMatches.map((m) => {
-              const fbMatch = hasOutdated ? null : fbMatches.find((fbm: any) => fbm.id === m.id);
-              
-              const fbScoreA = fbMatch?.scoreA !== undefined ? fbMatch.scoreA : (fbMatch?.homeScore !== undefined ? fbMatch.homeScore : null);
-              const fbScoreB = fbMatch?.scoreB !== undefined ? fbMatch.scoreB : (fbMatch?.awayScore !== undefined ? fbMatch.awayScore : null);
-
-              return {
-                id: m.id,
-                teamA: m.homeTeam,
-                teamB: m.awayTeam,
-                scoreA: fbScoreA !== null && fbScoreA !== undefined ? fbScoreA : m.homeScore,
-                scoreB: fbScoreB !== null && fbScoreB !== undefined ? fbScoreB : m.awayScore,
-                date: m.date,
-                status: fbMatch?.status !== undefined ? fbMatch.status : m.status,
-                minute: fbMatch?.minute !== undefined ? fbMatch.minute : m.minute,
-                group: m.group,
-                homeFlag: m.homeFlag,
-                awayFlag: m.awayFlag
-              };
-            });
-            setDoc(doc(db, "config", "jogos"), { lista: upgraded })
-              .catch((err) => console.error("Erro ao realizar upgrade de rodadas no Firebase:", err));
-            return;
-          }
-
           const mapped = fbMatches.map((m: any) => {
             const localFallback = initialMatches.find((lm) => lm.id === m.id);
             const rawScoreA = m.scoreA !== undefined ? m.scoreA : (m.homeScore !== undefined ? m.homeScore : null);
@@ -1227,9 +1186,18 @@ export default function App() {
               }}
               title="Meu Perfil - Clique para ver detalhes"
             >
-              <span className="text-[13px] sm:text-[15px] leading-none select-none filter drop-shadow-xs">
-                {activeParticipant.avatar || '⚽'}
-              </span>
+              {activeParticipant.imageUrl ? (
+                <img 
+                  src={activeParticipant.imageUrl} 
+                  alt={activeParticipant.name} 
+                  referrerPolicy="no-referrer"
+                  className="w-5 h-5 rounded-full object-cover border border-white/20 select-none shrink-0" 
+                />
+              ) : (
+                <span className="text-[13px] sm:text-[15px] leading-none select-none filter drop-shadow-xs">
+                  {activeParticipant.avatar || '⚽'}
+                </span>
+              )}
               <span className="text-[10px] sm:text-xs font-black text-amber-300 tracking-wide uppercase truncate max-w-[80px] xs:max-w-[120px]">
                 {activeParticipant.name}
               </span>
