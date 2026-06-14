@@ -11,8 +11,11 @@ interface LeaderboardProps {
 }
 
 export default function Leaderboard({ participants, scores: rawScores, activeParticipantId }: LeaderboardProps) {
-  // Only include participants who have complete guesses
-  const scores = rawScores.filter((s) => !s.isIncomplete);
+  // Only include participants who have complete guesses and are locked
+  const scores = rawScores.filter((s) => {
+    const p = participants.find((x) => x.id === s.participantId);
+    return !s.isIncomplete && p?.locked;
+  });
 
   const firstStat = scores[0];
   const secondStat = scores[1];
