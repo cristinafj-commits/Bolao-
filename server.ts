@@ -11,6 +11,14 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Cache in-memory structure with 60-second TTL to avoid 429 rate limit
+  interface CacheEntry {
+    timestamp: number;
+    data: any;
+  }
+  const matchCache: Record<string, CacheEntry> = {};
+  const CACHE_TTL_MS = 60 * 1000; // 60 segundos
+
   // API Route: Match integration with Football-Data.org
   app.get("/api/football-data/matches", async (req, res) => {
     try {
@@ -26,6 +34,13 @@ async function startServer() {
       const leagueCode = 'WC'; 
       const season = req.query.season || '2026';
 
+      const cacheKey = `${leagueCode}-${season}`;
+      const now = Date.now();
+      if (matchCache[cacheKey] && (now - matchCache[cacheKey].timestamp < CACHE_TTL_MS)) {
+        console.log(`[Cache Hit] Retornando dados em cache para ${cacheKey}`);
+        return res.json(matchCache[cacheKey].data);
+      }
+
       console.log(`Buscando partidas de football-data.org para a liga: ${leagueCode}, temporada: ${season}`);
       const response = await fetch(`https://api.football-data.org/v4/competitions/${leagueCode}/matches?season=${season}`, {
         headers: {
@@ -39,6 +54,13 @@ async function startServer() {
       }
 
       const data = await response.json();
+      
+      // Save to cache
+      matchCache[cacheKey] = {
+        timestamp: Date.now(),
+        data: data
+      };
+
       res.json(data);
     } catch (error: any) {
       console.error("Erro ao buscar dados do Football-Data API:", error);

@@ -54,6 +54,7 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [cloudStatus, setCloudStatus] = useState<'connecting' | 'synced' | 'offline'>('connecting');
   const [selectedLeague, setSelectedLeague] = useState<string>('WC');
+  const [selectedSeason, setSelectedSeason] = useState<string>('2026');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [autoSyncInterval, setAutoSyncInterval] = useState<number>(() => {
     const saved = localStorage.getItem('bolao_autosync_interval');
@@ -65,6 +66,89 @@ export default function App() {
     message?: string;
     matchCount?: number;
   } | null>(null);
+
+  const [hasDoneInitialSync, setHasDoneInitialSync] = useState<boolean>(false);
+
+  // Silent background sync of results once on startup when matches are loaded
+  useEffect(() => {
+    if (hasDoneInitialSync || !matches || matches.length === 0 || cloudStatus !== 'synced') {
+      return;
+    }
+    
+    setHasDoneInitialSync(true); // run only once
+
+    const runSilentUpdate = async () => {
+      try {
+        console.log("[Auto-Sync-Mount] Iniciando verificação de placares silenciosa...");
+        const response = await fetch(`/api/football-data/matches?leagueCode=WC&season=2026`);
+        if (!response.ok) return;
+        const data = await response.json();
+        const remoteMatches = data.matches;
+        if (!Array.isArray(remoteMatches) || remoteMatches.length === 0) return;
+
+        let hasChanges = false;
+        const updatedList = matches.map((m) => {
+          const matchedRemote = matchExistingByTeamNames(m, remoteMatches);
+          if (matchedRemote) {
+            const remoteHomeScore = matchedRemote.score?.fullTime?.home;
+            const remoteAwayScore = matchedRemote.score?.fullTime?.away;
+            
+            let mappedStatus: 'SCHEDULED' | 'LIVE' | 'FINISHED' = m.status;
+            if (matchedRemote.status === 'FINISHED') {
+              mappedStatus = 'FINISHED';
+            } else if (matchedRemote.status === 'LIVE' || matchedRemote.status === 'IN_PLAY' || matchedRemote.status === 'PAUSED') {
+              mappedStatus = 'LIVE';
+            }
+
+            const homeScoreChanged = remoteHomeScore !== undefined && remoteHomeScore !== null && remoteHomeScore !== m.homeScore;
+            const awayScoreChanged = remoteAwayScore !== undefined && remoteAwayScore !== null && remoteAwayScore !== m.awayScore;
+            const statusChanged = mappedStatus !== m.status;
+
+            if (homeScoreChanged || awayScoreChanged || statusChanged) {
+              hasChanges = true;
+              console.log(`[Auto-Sync-Mount] Alteração em ${m.homeTeam} vs ${m.awayTeam}: Placar anterior: ${m.homeScore}-${m.awayScore}, Novo: ${remoteHomeScore}-${remoteAwayScore}`);
+              
+              return {
+                ...m,
+                homeScore: remoteHomeScore !== undefined && remoteHomeScore !== null ? remoteHomeScore : m.homeScore,
+                awayScore: remoteAwayScore !== undefined && remoteAwayScore !== null ? remoteAwayScore : m.awayScore,
+                status: mappedStatus,
+                minute: matchedRemote.status === 'FINISHED' ? 90 : (matchedRemote.status === 'IN_PLAY' ? 45 : m.minute),
+              };
+            }
+          }
+          return m;
+        });
+
+        if (hasChanges) {
+          console.log("[Auto-Sync-Mount] Salvando novos placares atualizados no Firestore...");
+          const converted = updatedList.map((m) => ({
+            id: m.id,
+            teamA: m.homeTeam,
+            teamB: m.awayTeam,
+            scoreA: m.homeScore,
+            scoreB: m.awayScore,
+            date: m.date,
+            status: m.status,
+            minute: m.minute,
+            group: m.group,
+            homeFlag: m.homeFlag,
+            awayFlag: m.awayFlag
+          }));
+          await setDoc(doc(db, "config", "jogos"), { lista: converted });
+        }
+      } catch (err) {
+        console.error("Erro na sincronização automática em background no mount:", err);
+      }
+    };
+
+    // Pequeno atraso para não travar o carregamento inicial da página
+    const timeoutId = setTimeout(() => {
+      runSilentUpdate();
+    }, 2000);
+
+    return () => clearTimeout(timeoutId);
+  }, [matches, hasDoneInitialSync, cloudStatus]);
 
   // Mutable reference for fresh score updates callback
   const syncRef = React.useRef<() => any>(() => {});
@@ -78,7 +162,9 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('bolao_autosync_interval', autoSyncInterval.toString());
-    
+  }, [autoSyncInterval]);
+
+  useEffect(() => {
     if (autoSyncInterval <= 0) {
       setSecondsUntilNextSync(null);
       return;
@@ -857,14 +943,22 @@ export default function App() {
     triggerToast(`⏳ Conectando à API Football-Data (${selectedLeague})...`);
 
     try {
-      const response = await fetch(`/api/football-data/matches?leagueCode=${selectedLeague}`);
-      const data = await response.json();
+      const response = await fetch(`/api/football-data/matches?leagueCode=${selectedLeague}&season=${selectedSeason}`);
+      
+      let data: any = null;
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const textFallback = await response.text();
+        throw new Error(`Resposta do servidor inválida (HTML/Texto): ${textFallback.substring(0, 120)}`);
+      }
 
       if (!response.ok) {
-        if (data.error === 'FOOTBALL_DATA_API_KEY_MISSING') {
+        if (data && data.error === 'FOOTBALL_DATA_API_KEY_MISSING') {
           triggerToast(`🔑 Erro: Chave de API não cadastrada em Configurações!`);
         } else {
-          triggerToast(`❌ Erro da API: ${data.message || 'Falha na requisição'}`);
+          triggerToast(`❌ Erro da API: ${(data && data.message) || 'Falha na requisição'}`);
         }
         setIsSyncing(false);
         return;
@@ -975,11 +1069,19 @@ export default function App() {
   const handleTestApiConnection = async () => {
     setApiStatus({ status: 'checking' });
     try {
-      const response = await fetch('/api/football-data/matches?leagueCode=WC');
-      const data = await response.json();
+      const response = await fetch(`/api/football-data/matches?leagueCode=WC&season=${selectedSeason}`);
+      
+      let data: any = null;
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const textFallback = await response.text();
+        throw new Error(`Resposta do servidor inválida (HTML/Texto): ${textFallback.substring(0, 120)}`);
+      }
 
       if (!response.ok) {
-        if (data.error === 'FOOTBALL_DATA_API_KEY_MISSING') {
+        if (data && data.error === 'FOOTBALL_DATA_API_KEY_MISSING') {
           setApiStatus({
             status: 'key_missing',
             message: 'A chave FOOTBALL_DATA_API_KEY não foi encontrada nas variáveis de ambiente (.env ou Configurações do AI Studio).'
@@ -988,7 +1090,7 @@ export default function App() {
         } else {
           setApiStatus({
             status: 'error',
-            message: data.message || `Erro do servidor: ${response.status}`
+            message: (data && data.message) || `Erro do servidor: ${response.status}`
           });
           triggerToast('❌ Erro ao testar conexão.');
         }
@@ -1364,16 +1466,9 @@ export default function App() {
                     </div>
                     <div>
                       <h3 className="font-extrabold text-xs text-emerald-900 uppercase tracking-wider">
-                        Sincronização Automática (API)
-                      </h3>
-                      <p className="text-[10px] text-slate-500 mt-0.5">
-                        Importe partidas ou atualize placares automaticamente via Football-Data.org.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        Sincronização Automática (API)</h3></div></div>
+                   <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <div>
                         <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                           Campeonato / Liga
@@ -1386,6 +1481,21 @@ export default function App() {
                           disabled
                         >
                           <option value="WC">🏆 Copa do Mundo</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                          Temporada / Ano
+                        </label>
+                        <select
+                          value={selectedSeason}
+                          onChange={(e) => setSelectedSeason(e.target.value)}
+                          className="w-full text-xs bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-2.5 py-2 font-medium text-slate-800 outline-hidden"
+                          id="select-season-api"
+                          disabled
+                        >
+                          <option value="2026">📅 2026 (Atual)</option>
                         </select>
                       </div>
 
