@@ -108,6 +108,28 @@ export default function App() {
     localStorage.setItem('bolao_matches', JSON.stringify(matches));
   }, [matches]);
 
+  // Client-side live match minute ticker: automatically ticks active 'LIVE' game clocks by 1 minute every 60 seconds
+  useEffect(() => {
+    const hasLiveGames = matches.some((m) => m.status === 'LIVE');
+    if (!hasLiveGames) return;
+
+    const timer = setInterval(() => {
+      setMatches((prevMatches) =>
+        prevMatches.map((m) => {
+          if (m.status === 'LIVE' && m.minute < 90) {
+            return {
+              ...m,
+              minute: m.minute + 1
+            };
+          }
+          return m;
+        })
+      );
+    }, 60000);
+
+    return () => clearInterval(timer);
+  }, [matches]);
+
   useEffect(() => {
     localStorage.setItem('bolao_guesses', JSON.stringify(guesses));
   }, [guesses]);
@@ -442,6 +464,68 @@ export default function App() {
     }
   };
 
+  const handleSaveMultipleGuesses = async (bets: { matchId: string; homeScore: number; awayScore: number }[]) => {
+    const activeParticipant = participants.find((p) => p.id === activeParticipantId);
+    if (activeParticipant?.locked && !isAdminMode) {
+      triggerToast('⚠️ Seus palpites estão consolidados e bloqueados!');
+      return;
+    }
+
+    if (bets.length === 0) return;
+
+    setGuesses((prev) => {
+      let current = [...prev];
+      bets.forEach((bet) => {
+        current = current.filter((g) => !(g.participantId === activeParticipantId && g.matchId === bet.matchId));
+        current.push({
+          participantId: activeParticipantId,
+          matchId: bet.matchId,
+          homeScoreGuess: bet.homeScore,
+          awayScoreGuess: bet.awayScore,
+        });
+      });
+      return current;
+    });
+
+    if (activeParticipant) {
+      let currentGuesses = guesses.filter((g) => g.participantId === activeParticipantId);
+      
+      bets.forEach((bet) => {
+        currentGuesses = currentGuesses.filter((g) => g.matchId !== bet.matchId);
+        currentGuesses.push({
+          participantId: activeParticipantId,
+          matchId: bet.matchId,
+          homeScoreGuess: bet.homeScore,
+          awayScoreGuess: bet.awayScore,
+        });
+      });
+
+      const palpitesObj: Record<string, { scoreA: number; scoreB: number }> = {};
+      currentGuesses.forEach((g) => {
+        palpitesObj[g.matchId] = {
+          scoreA: g.homeScoreGuess,
+          scoreB: g.awayScoreGuess,
+        };
+      });
+
+      try {
+        await setDoc(doc(db, "usuarios", activeParticipantId), {
+          nome: activeParticipant.name,
+          avatar: activeParticipant.avatar || '⚽',
+          email: activeParticipant.email || '',
+          imageUrl: activeParticipant.imageUrl || '',
+          palpites: palpitesObj,
+        }, { merge: true });
+        triggerToast(`☁️ Todos os ${bets.length} palpites salvos na Nuvem!`);
+      } catch (err) {
+        console.error("Erro ao salvar palpites em lote no Firebase:", err);
+        triggerToast(`✅ ${bets.length} palpites salvos localmente.`);
+      }
+    } else {
+      triggerToast(`✅ ${bets.length} palpites salvos localmente.`);
+    }
+  };
+
   const handleLockGuesses = async () => {
     const activeParticipant = participants.find((p) => p.id === activeParticipantId);
     if (!activeParticipant) return;
@@ -588,16 +672,25 @@ export default function App() {
     matchId: string,
     homeScore: number | null,
     awayScore: number | null,
-    status: 'SCHEDULED' | 'LIVE' | 'FINISHED'
+    status: 'SCHEDULED' | 'LIVE' | 'FINISHED',
+    minuteParam?: number | null
   ) => {
     const updated = matches.map((m) => {
       if (m.id === matchId) {
+        let finalMinute = m.minute;
+        if (minuteParam !== undefined && minuteParam !== null) {
+          finalMinute = minuteParam;
+        } else if (status === 'FINISHED') {
+          finalMinute = 90;
+        } else if (status === 'LIVE' && m.minute === 0) {
+          finalMinute = 1;
+        }
         return {
           ...m,
           homeScore,
           awayScore,
           status,
-          minute: status === 'FINISHED' ? 90 : m.minute,
+          minute: finalMinute,
         };
       }
       return m;
@@ -1539,6 +1632,7 @@ export default function App() {
                 participants={participants}
                 activeParticipantId={activeParticipantId}
                 onSaveGuess={handleSaveGuess}
+                onSaveMultipleGuesses={handleSaveMultipleGuesses}
                 isAdminMode={isAdminMode}
                 onUpdateActualScore={handleUpdateActualScore}
                 onLockGuesses={handleLockGuesses}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Match, Guess, Participant } from '../types';
 import { calculateGuessPoints } from '../utils';
 import { Users, Save, CheckCircle, ChevronDown, ChevronUp, Lock, Edit2, Play, Sparkles, AlertCircle, Calendar, Search, ListFilter, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -36,8 +36,9 @@ interface MatchesListProps {
   participants: Participant[];
   activeParticipantId: string;
   onSaveGuess: (matchId: string, homeScore: number, awayScore: number) => void;
+  onSaveMultipleGuesses?: (bets: { matchId: string; homeScore: number; awayScore: number }[]) => Promise<void>;
   isAdminMode: boolean;
-  onUpdateActualScore: (matchId: string, homeScore: number | null, awayScore: number | null, status: 'SCHEDULED' | 'LIVE' | 'FINISHED') => void;
+  onUpdateActualScore: (matchId: string, homeScore: number | null, awayScore: number | null, status: 'SCHEDULED' | 'LIVE' | 'FINISHED', minute?: number) => void;
   onLockGuesses?: () => void;
 }
 
@@ -47,13 +48,14 @@ export default function MatchesList({
   participants,
   activeParticipantId,
   onSaveGuess,
+  onSaveMultipleGuesses,
   isAdminMode,
   onUpdateActualScore,
   onLockGuesses,
 }: MatchesListProps) {
   const [expandedGuesses, setExpandedGuesses] = useState<Record<string, boolean>>({});
   const [editGuesses, setEditGuesses] = useState<Record<string, { home: number; away: number }>>({});
-  const [adminScores, setAdminScores] = useState<Record<string, { home: number | null; away: number | null; status: 'SCHEDULED' | 'LIVE' | 'FINISHED' }>>({});
+  const [adminScores, setAdminScores] = useState<Record<string, { home: number | null; away: number | null; status: 'SCHEDULED' | 'LIVE' | 'FINISHED'; minute?: number }>>({});
   const [justSavedIds, setJustSavedIds] = useState<Record<string, boolean>>({});
   const [adminSavedIds, setAdminSavedIds] = useState<Record<string, boolean>>({});
 
@@ -66,24 +68,83 @@ export default function MatchesList({
   const [localHomeGuesses, setLocalHomeGuesses] = useState<Record<string, string>>({});
   const [localAwayGuesses, setLocalAwayGuesses] = useState<Record<string, string>>({});
 
-  // Populate local input values from Firebase once loaded or changed
+  const lastGuessesPropRef = useRef<Guess[]>([]);
+  const lastConsultedIdRef = useRef<string>('');
+
+  // Populate local input values from Firebase once loaded or changed, preserving unsaved/dirty user input
   useEffect(() => {
-    const defaultHome: Record<string, string> = {};
-    const defaultAway: Record<string, string> = {};
-    
-    matches.forEach((m) => {
-      const myGuess = guesses.find((g) => g.participantId === consultedParticipantId && g.matchId === m.id);
-      if (myGuess && myGuess.homeScoreGuess !== null && myGuess.homeScoreGuess !== undefined) {
-        defaultHome[m.id] = String(myGuess.homeScoreGuess);
-        defaultAway[m.id] = String(myGuess.awayScoreGuess);
-      } else {
-        defaultHome[m.id] = '';
-        defaultAway[m.id] = '';
-      }
+    const idChanged = lastConsultedIdRef.current !== consultedParticipantId;
+    lastConsultedIdRef.current = consultedParticipantId;
+
+    setLocalHomeGuesses((prevHome) => {
+      setLocalAwayGuesses((prevAway) => {
+        const updatedAway = { ...prevAway };
+
+        matches.forEach((m) => {
+          const myGuess = guesses.find((g) => g.participantId === consultedParticipantId && g.matchId === m.id);
+          const prevGuess = lastGuessesPropRef.current.find((g) => g.participantId === consultedParticipantId && g.matchId === m.id);
+
+          const hasGuess = myGuess && myGuess.homeScoreGuess !== null && myGuess.homeScoreGuess !== undefined;
+          const hadGuess = prevGuess && prevGuess.homeScoreGuess !== null && prevGuess.homeScoreGuess !== undefined;
+
+          // Decide if we should overwrite the local value for this match
+          let shouldOverwrite = false;
+
+          if (idChanged) {
+            shouldOverwrite = true;
+          } else if (hasGuess !== hadGuess) {
+            shouldOverwrite = true;
+          } else if (hasGuess && prevGuess && (myGuess.homeScoreGuess !== prevGuess.homeScoreGuess || myGuess.awayScoreGuess !== prevGuess.awayScoreGuess)) {
+            shouldOverwrite = true;
+          } else if (updatedAway[m.id] === undefined) {
+            shouldOverwrite = true;
+          }
+
+          if (shouldOverwrite) {
+            if (hasGuess) {
+              updatedAway[m.id] = String(myGuess.awayScoreGuess);
+            } else {
+              updatedAway[m.id] = '';
+            }
+          }
+        });
+
+        return updatedAway;
+      });
+
+      const updatedHome = { ...prevHome };
+      matches.forEach((m) => {
+        const myGuess = guesses.find((g) => g.participantId === consultedParticipantId && g.matchId === m.id);
+        const prevGuess = lastGuessesPropRef.current.find((g) => g.participantId === consultedParticipantId && g.matchId === m.id);
+
+        const hasGuess = myGuess && myGuess.homeScoreGuess !== null && myGuess.homeScoreGuess !== undefined;
+        const hadGuess = prevGuess && prevGuess.homeScoreGuess !== null && prevGuess.homeScoreGuess !== undefined;
+
+        let shouldOverwrite = false;
+
+        if (idChanged) {
+          shouldOverwrite = true;
+        } else if (hasGuess !== hadGuess) {
+          shouldOverwrite = true;
+        } else if (hasGuess && prevGuess && (myGuess.homeScoreGuess !== prevGuess.homeScoreGuess || myGuess.awayScoreGuess !== prevGuess.awayScoreGuess)) {
+          shouldOverwrite = true;
+        } else if (updatedHome[m.id] === undefined) {
+          shouldOverwrite = true;
+        }
+
+        if (shouldOverwrite) {
+          if (hasGuess) {
+            updatedHome[m.id] = String(myGuess.homeScoreGuess);
+          } else {
+            updatedHome[m.id] = '';
+          }
+        }
+      });
+
+      return updatedHome;
     });
 
-    setLocalHomeGuesses(defaultHome);
-    setLocalAwayGuesses(defaultAway);
+    lastGuessesPropRef.current = guesses;
   }, [consultedParticipantId, guesses, matches]);
 
   const [viewType, setViewType] = useState<'day' | 'round'>('day');
@@ -93,6 +154,66 @@ export default function MatchesList({
   const activeParticipant = participants.find((p) => p.id === activeParticipantId);
   const consultedParticipant = participants.find((p) => p.id === consultedParticipantId);
   const isConsultingSelf = consultedParticipantId === activeParticipantId;
+
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
+
+  const dirtyMatchesInfo = useMemo(() => {
+    if (!isConsultingSelf || (activeParticipant?.locked && !isAdminMode)) {
+      return [];
+    }
+    const list: { matchId: string; homeScore: number; awayScore: number; m: Match }[] = [];
+    matches.forEach((m) => {
+      const valHome = localHomeGuesses[m.id] ?? '';
+      const valAway = localAwayGuesses[m.id] ?? '';
+      const isMarked = valHome !== '' && valAway !== '';
+      if (!isMarked) return;
+
+      const savedGuess = guesses.find((g) => g.participantId === activeParticipantId && g.matchId === m.id);
+      const isDirty = !savedGuess || String(savedGuess.homeScoreGuess) !== valHome || String(savedGuess.awayScoreGuess) !== valAway;
+
+      if (isDirty) {
+        list.push({
+          matchId: m.id,
+          homeScore: parseInt(valHome, 10),
+          awayScore: parseInt(valAway, 10),
+          m,
+        });
+      }
+    });
+    return list;
+  }, [isConsultingSelf, activeParticipant, isAdminMode, matches, localHomeGuesses, localAwayGuesses, guesses, activeParticipantId]);
+
+  const handleBulkSave = async () => {
+    if (!onSaveMultipleGuesses || dirtyMatchesInfo.length === 0) return;
+    setIsBulkSaving(true);
+    try {
+      const bets = dirtyMatchesInfo.map((info) => ({
+        matchId: info.matchId,
+        homeScore: info.homeScore,
+        awayScore: info.awayScore,
+      }));
+      await onSaveMultipleGuesses(bets);
+      
+      const savedIdsObj: Record<string, boolean> = {};
+      bets.forEach((b) => {
+        savedIdsObj[b.matchId] = true;
+      });
+      setJustSavedIds((prev) => ({ ...prev, ...savedIdsObj }));
+      setTimeout(() => {
+        setJustSavedIds((prev) => {
+          const clone = { ...prev };
+          bets.forEach((b) => {
+            clone[b.matchId] = false;
+          });
+          return clone;
+        });
+      }, 2000);
+    } catch (err) {
+      console.error("Bulk save error:", err);
+    } finally {
+      setIsBulkSaving(false);
+    }
+  };
 
   const unfilledMatchesCount = useMemo(() => {
     const activeGuesses = guesses.filter(
@@ -257,6 +378,49 @@ export default function MatchesList({
     }));
   };
 
+  const handleAdminStatusChange = (matchId: string, status: 'SCHEDULED' | 'LIVE' | 'FINISHED') => {
+    const match = matches.find((x) => x.id === matchId);
+    const mHome = match ? match.homeScore : null;
+    const mAway = match ? match.awayScore : null;
+    const mStatus = match ? match.status : 'SCHEDULED';
+    const mMinute = match ? match.minute : 0;
+
+    const current = adminScores[matchId] || { home: mHome, away: mAway, status: mStatus, minute: mMinute };
+
+    setAdminScores((prev) => ({
+      ...prev,
+      [matchId]: {
+        ...current,
+        status,
+        minute: status === 'FINISHED' ? 90 : (status === 'SCHEDULED' ? 0 : current.minute),
+      },
+    }));
+  };
+
+  const handleAdminMinuteChange = (matchId: string, rawMinute: string) => {
+    const match = matches.find((x) => x.id === matchId);
+    const mHome = match ? match.homeScore : null;
+    const mAway = match ? match.awayScore : null;
+    const mStatus = match ? match.status : 'SCHEDULED';
+    const mMinute = match ? match.minute : 0;
+
+    const current = adminScores[matchId] || { home: mHome, away: mAway, status: mStatus, minute: mMinute };
+
+    let cleanMin = 0;
+    if (rawMinute && rawMinute.trim() !== '') {
+      const parsed = parseInt(rawMinute, 10);
+      cleanMin = isNaN(parsed) ? 0 : Math.max(0, Math.min(120, parsed));
+    }
+
+    setAdminScores((prev) => ({
+      ...prev,
+      [matchId]: {
+        ...current,
+        minute: cleanMin,
+      },
+    }));
+  };
+
   return (
     <div className="space-y-4" id="matches-list-root">
       
@@ -275,8 +439,8 @@ export default function MatchesList({
               }}
               className={`flex-1 py-1.5 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 viewType === 'day'
-                  ? 'bg-white text-emerald-800 shadow-xs border border-slate-250/20'
-                  : 'text-slate-550 hover:text-slate-800'
+                  ? 'bg-white text-emerald-800 shadow-xs border border-slate-300/20'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
               id="view-type-day-btn"
             >
@@ -290,12 +454,12 @@ export default function MatchesList({
               }}
               className={`flex-1 py-1.5 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 viewType === 'round'
-                  ? 'bg-white text-emerald-800 shadow-xs border border-slate-250/20'
-                  : 'text-slate-550 hover:text-slate-800'
+                  ? 'bg-white text-emerald-800 shadow-xs border border-slate-300/20'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
               id="view-type-round-btn"
             >
-              <ListFilter className="w-3.5 h-3.5 text-emerald-705" />
+              <ListFilter className="w-3.5 h-3.5 text-emerald-700" />
               <span>Ver por Rodada</span>
             </button>
           </div>
@@ -308,7 +472,7 @@ export default function MatchesList({
               placeholder="Pesquisar país (ex: Brasil)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-220 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/15 rounded-xl text-xs text-slate-850 placeholder-slate-400 outline-hidden transition-all"
+              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/15 rounded-xl text-xs text-slate-800 placeholder-slate-400 outline-hidden transition-all"
               id="team-search-input"
             />
           </div>
@@ -321,7 +485,7 @@ export default function MatchesList({
             
             {/* Left Status side */}
             <div className="flex items-center gap-2 flex-wrap min-w-0">
-              <span className="py-1 px-2 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-150 font-black flex items-center gap-1 shrink-0 uppercase tracking-wider text-[9px] select-none">
+              <span className="py-1 px-2 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-200 font-black flex items-center gap-1 shrink-0 uppercase tracking-wider text-[9px] select-none">
                 🔎 VISUALIZAÇÃO
               </span>
               <div className="min-w-0">
@@ -331,7 +495,7 @@ export default function MatchesList({
                     Modo Consulta (Visitante)
                   </span>
                 ) : (
-                  <span className="text-emerald-800 font-extrabold bg-emerald-50/75 px-2.5 py-1 rounded-lg border border-emerald-250/60 inline-flex items-center gap-1.5 text-[11px] leading-none shrink-0 truncate max-w-full">
+                  <span className="text-emerald-800 font-extrabold bg-emerald-50/75 px-2.5 py-1 rounded-lg border border-emerald-305 inline-flex items-center gap-1.5 text-[11px] leading-none shrink-0 truncate max-w-full">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
                     Participante: {activeParticipant?.name}
                   </span>
@@ -348,7 +512,7 @@ export default function MatchesList({
                 <select
                   value={consultedParticipantId}
                   onChange={(e) => setConsultedParticipantId(e.target.value)}
-                  className="bg-white border border-slate-220 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/15 text-xs rounded-xl pl-3 pr-8 py-2 font-bold text-slate-800 cursor-pointer outline-hidden w-full truncate transition-all shadow-3xs"
+                  className="bg-white border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/15 text-xs rounded-xl pl-3 pr-8 py-2 font-bold text-slate-800 cursor-pointer outline-hidden w-full truncate transition-all shadow-3xs"
                   id="consultation-participant-select"
                 >
                   {activeParticipantId !== '' && (
@@ -383,7 +547,7 @@ export default function MatchesList({
                   onClick={() => {
                     document.getElementById('dates-scroll-row')?.scrollBy({ left: -160, behavior: 'smooth' });
                   }}
-                  className="absolute left-2 z-10 p-1.5 rounded-full bg-white/95 border border-slate-205 shadow-md hover:bg-white text-slate-700 hover:text-emerald-700 transition active:scale-90 cursor-pointer lg:flex hidden"
+                  className="absolute left-2 z-10 p-1.5 rounded-full bg-white/95 border border-slate-200 shadow-md hover:bg-white text-slate-700 hover:text-emerald-700 transition active:scale-90 cursor-pointer lg:flex hidden"
                   title="Anterior"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -404,8 +568,8 @@ export default function MatchesList({
                         onClick={() => setSelectedDate(date)}
                         className={`px-3 py-2 rounded-2xl transition-all duration-200 shrink-0 snap-center flex flex-col items-center gap-0.5 cursor-pointer min-w-[76px] shadow-3xs active:scale-95 ${
                           isSelected
-                            ? 'bg-gradient-to-b from-emerald-600 to-emerald-850 text-white ring-2 ring-yellow-450 border border-emerald-500 shadow-md shadow-emerald-750/30'
-                            : 'bg-white hover:bg-emerald-50/50 text-slate-800 border border-slate-205 hover:border-emerald-300'
+                            ? 'bg-gradient-to-b from-emerald-600 to-emerald-800 text-white ring-2 ring-yellow-400 border border-emerald-500 shadow-md'
+                            : 'bg-white hover:bg-emerald-50/50 text-slate-800 border border-slate-200 hover:border-emerald-300'
                         }`}
                         id={`date-chip-${date.replace(' ', '-')}`}
                       >
@@ -414,7 +578,7 @@ export default function MatchesList({
                         }`}>{weekDay}</span>
                         <span className="text-xs font-black tracking-tight leading-none">{date}</span>
                         <span className={`text-[9px] font-mono font-black px-2 py-0.5 rounded-full leading-none mt-1 ${
-                          isSelected ? 'bg-yellow-450 text-emerald-950 font-black' : 'bg-slate-100 text-emerald-850'
+                          isSelected ? 'bg-yellow-400 text-emerald-950 font-black' : 'bg-slate-100 text-emerald-800'
                         }`}>
                           {matchesCountOnDay} {matchesCountOnDay === 1 ? 'jogo' : 'jogos'}
                         </span>
@@ -429,7 +593,7 @@ export default function MatchesList({
                   onClick={() => {
                     document.getElementById('dates-scroll-row')?.scrollBy({ left: 160, behavior: 'smooth' });
                   }}
-                  className="absolute right-2 z-10 p-1.5 rounded-full bg-white/95 border border-slate-205 shadow-md hover:bg-white text-slate-700 hover:text-emerald-700 transition active:scale-90 cursor-pointer lg:flex hidden"
+                  className="absolute right-2 z-10 p-1.5 rounded-full bg-white/95 border border-slate-200 shadow-md hover:bg-white text-slate-700 hover:text-emerald-700 transition active:scale-90 cursor-pointer lg:flex hidden"
                   title="Próximo"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -463,8 +627,8 @@ export default function MatchesList({
                     onClick={() => setSelectedRound(round.id)}
                     className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center active:scale-95 border ${
                       isSelected
-                        ? 'bg-emerald-700 text-white border-emerald-700 ring-1 ring-yellow-450 shadow-sm shadow-emerald-700/10'
-                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-220'
+                        ? 'bg-emerald-700 text-white border-emerald-700 ring-1 ring-yellow-400 shadow-sm'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
                     }`}
                     id={`round-chip-${round.id}`}
                   >
@@ -495,7 +659,7 @@ export default function MatchesList({
               activeParticipant.locked
                 ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
                 : unfilledMatchesCount > 0
-                  ? 'bg-amber-150 border-amber-300 text-amber-700'
+                  ? 'bg-amber-100 border-amber-300 text-amber-705'
                   : 'bg-emerald-100 border-emerald-300 text-emerald-800'
             }`}>
               <Lock className="w-5 h-5 shrink-0 animate-bounce" />
@@ -518,23 +682,49 @@ export default function MatchesList({
             </div>
           </div>
 
-          {!activeParticipant.locked && onLockGuesses && (
-            <button
-               onClick={(e) => {
-                 e.stopPropagation();
-                 onLockGuesses();
-               }}
-              disabled={unfilledMatchesCount > 0}
-              className={`w-full md:w-auto py-2.5 px-5 font-extrabold text-xs rounded-xl cursor-pointer transition-all shadow-xs flex items-center justify-center gap-1.5 uppercase tracking-wider shrink-0 ${
-                unfilledMatchesCount > 0
-                  ? 'bg-slate-200 border border-slate-300 text-slate-400 cursor-not-allowed'
-                  : 'bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white'
-              }`}
-              id="matches-banner-lock-btn"
-            >
-              <CheckCircle className="w-4 h-4 shrink-0" />
-              <span>{unfilledMatchesCount > 0 ? 'Grave todos para liberar' : 'Confirmar & Trancar Palpites'}</span>
-            </button>
+          {!activeParticipant.locked && (
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto shrink-0 justify-center md:justify-end">
+              {dirtyMatchesInfo.length > 0 && onSaveMultipleGuesses && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleBulkSave();
+                  }}
+                  disabled={isBulkSaving}
+                  className="w-full sm:w-auto py-2.5 px-5 font-extrabold text-xs rounded-xl cursor-pointer transition-all shadow-md flex items-center justify-center gap-1.5 uppercase tracking-wider bg-amber-500 hover:bg-amber-600 text-white border border-amber-600"
+                  id="matches-banner-bulk-save-btn"
+                >
+                  <Save className="w-4 h-4 shrink-0" />
+                  <span>{isBulkSaving ? 'Gravando...' : `Salvar ${dirtyMatchesInfo.length} Palpites`}</span>
+                </button>
+              )}
+
+              {onLockGuesses && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onLockGuesses();
+                  }}
+                  disabled={unfilledMatchesCount > 0 || dirtyMatchesInfo.length > 0}
+                  className={`w-full sm:w-auto py-2.5 px-5 font-extrabold text-xs rounded-xl cursor-pointer transition-all shadow-xs flex items-center justify-center gap-1.5 uppercase tracking-wider ${
+                    (unfilledMatchesCount > 0 || dirtyMatchesInfo.length > 0)
+                      ? 'bg-slate-200 border border-slate-300 text-slate-400 cursor-not-allowed'
+                      : 'bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white'
+                  }`}
+                  title={dirtyMatchesInfo.length > 0 ? 'Grave as alterações pendentes primeiro para poder trancar' : ''}
+                  id="matches-banner-lock-btn"
+                >
+                  <CheckCircle className="w-4 h-4 shrink-0" />
+                  <span>
+                    {dirtyMatchesInfo.length > 0
+                      ? 'Grave alterações para liberar'
+                      : unfilledMatchesCount > 0
+                        ? 'Grave todos para liberar'
+                        : 'Confirmar / Trancar'}
+                  </span>
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -546,8 +736,8 @@ export default function MatchesList({
           id="matches-visitor-banner"
         >
           <div className="flex items-start gap-3 text-left">
-            <div className="p-2 rounded-lg border bg-slate-100 border-slate-250 text-slate-500 shrink-0">
-              <Users className="w-5 h-5 shrink-0" />
+            <div className="p-2 rounded-lg border bg-slate-100 border-slate-200 text-slate-500 shrink-0">
+              <span className="text-slate-505 font-bold uppercase tracking-wider">⚽</span>
             </div>
             <div className="space-y-0.5">
               <span className="font-extrabold text-xs uppercase tracking-wider block text-slate-700">
@@ -568,9 +758,49 @@ export default function MatchesList({
                 if (card) card.scrollIntoView({ behavior: 'smooth' });
               }
             }}
-            className="w-full md:w-auto py-2.5 px-5 bg-emerald-650 hover:bg-emerald-555 text-white font-extrabold text-xs rounded-xl cursor-pointer transition-all shadow-md active:scale-95"
+            className="w-full md:w-auto py-2.5 px-5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl cursor-pointer transition-all shadow-md active:scale-95"
           >
             Apostar / Criar Meu Perfil
+          </button>
+        </div>
+      )}
+
+      {/* Top Banner Alert for Bulk Saving */}
+      {dirtyMatchesInfo.length > 0 && onSaveMultipleGuesses && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 mb-4 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in duration-200" id="matches-bulk-save-banner">
+          <div className="flex items-start gap-2.5 text-left">
+            <div className="p-2 rounded-lg bg-amber-100 border border-amber-200 text-amber-800 shrink-0">
+              <Save className="w-5 h-5 shrink-0" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-black text-amber-950 uppercase tracking-wider leading-none">
+                Palpites Alterados Pendentes!
+              </p>
+              <p className="text-xs text-amber-800 leading-normal font-medium">
+                Você editou <strong>{dirtyMatchesInfo.length}</strong> palpite(s). Lembre-se de gravar para sincronizá-los na nuvem.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleBulkSave}
+            disabled={isBulkSaving}
+            className="w-full sm:w-auto py-2.5 px-5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 shrink-0 select-none"
+            id="matches-bulk-save-banner-btn"
+          >
+            {isBulkSaving ? (
+              <>
+                <svg className="animate-spin h-3.5 w-3.5 text-white animate-fade-in" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                <span>Gravando...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-3.5 h-3.5 shrink-0 text-white" />
+                <span>Salvar {dirtyMatchesInfo.length} Palpites</span>
+              </>
+            )}
           </button>
         </div>
       )}
@@ -610,7 +840,7 @@ export default function MatchesList({
               key={m.id}
               className={`bg-white border overflow-hidden rounded-2xl shadow-sm transition-all ${
                 isLive
-                  ? 'border-rose-350 bg-linear-to-b from-rose-50/20 to-white shadow-md shadow-rose-100/30'
+                  ? 'border-rose-300 bg-linear-to-b from-rose-50/20 to-white shadow-md shadow-rose-100/30'
                   : hasGuessed
                   ? 'border-emerald-500 shadow-xs ring-2 ring-emerald-500/5'
                   : 'border-slate-200'
@@ -680,7 +910,7 @@ export default function MatchesList({
                             pattern="[0-9]*"
                             value={currentAdminHomeScore !== null && currentAdminHomeScore !== undefined ? currentAdminHomeScore : ''}
                             onChange={(e) => handleAdminScoreChange(m.id, 'home', e.target.value)}
-                            className="w-10 text-center font-mono font-black text-sm text-slate-900 bg-white border border-slate-250 rounded-md py-0.5"
+                            className="w-10 text-center font-mono font-black text-sm text-slate-900 bg-white border border-slate-200 rounded-md py-0.5"
                           />
                           <span className="text-amber-500 font-bold select-none">:</span>
                           {/* AWAY ADMIN BOX */}
@@ -690,7 +920,7 @@ export default function MatchesList({
                             pattern="[0-9]*"
                             value={currentAdminAwayScore !== null && currentAdminAwayScore !== undefined ? currentAdminAwayScore : ''}
                             onChange={(e) => handleAdminScoreChange(m.id, 'away', e.target.value)}
-                            className="w-10 text-center font-mono font-black text-sm text-slate-900 bg-white border border-slate-250 rounded-md py-0.5"
+                            className="w-10 text-center font-mono font-black text-sm text-slate-900 bg-white border border-slate-200 rounded-md py-0.5"
                           />
                         </div>
                       </div>
@@ -701,11 +931,11 @@ export default function MatchesList({
                           Placar Oficial
                         </span>
                         {isScheduled ? (
-                          <div className="text-slate-450 font-black text-[11px] sm:text-xs bg-slate-50 border border-slate-205 px-2.5 py-1 rounded-lg select-none">
+                          <div className="text-slate-400 font-black text-[11px] sm:text-xs bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg select-none">
                             VS
                           </div>
                         ) : (
-                          <div className={`flex items-center gap-1 bg-slate-100 px-3 py-1 border border-slate-205 shadow-3xs font-mono font-black text-xs sm:text-sm text-slate-900 select-none rounded-lg ${
+                          <div className={`flex items-center gap-1 bg-slate-100 px-3 py-1 border border-slate-200 shadow-3xs font-mono font-black text-xs sm:text-sm text-slate-900 select-none rounded-lg ${
                             isLive ? 'bg-rose-50 border-rose-200 text-rose-700 animate-pulse' : ''
                           }`}>
                             <span>{m.homeScore !== null ? m.homeScore : '-'}</span>
@@ -752,15 +982,15 @@ export default function MatchesList({
                     <div className="flex items-center gap-2 text-xs">
                       <div className={`p-1 rounded-lg border ${
                         isAdminMode 
-                          ? 'bg-amber-100/50 text-amber-800 border-amber-250' 
+                          ? 'bg-amber-100/50 text-amber-800 border-amber-300' 
                           : isConsultingSelf
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-150'
-                            : 'bg-indigo-50 border-indigo-250 text-indigo-750'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-indigo-50 border-indigo-200 text-indigo-700'
                       }`}>
                         {isConsultingSelf ? (
                           <Sparkles className={`w-4 h-4 shrink-0 ${isAdminMode ? 'text-amber-600' : 'text-emerald-600'}`} />
                         ) : (
-                          <Users className="w-4 h-4 shrink-0 text-indigo-650" />
+                          <Users className="w-4 h-4 shrink-0 text-indigo-600" />
                         )}
                       </div>
                       <div className="text-left">
@@ -785,8 +1015,8 @@ export default function MatchesList({
                           <div className="flex items-center gap-2 flex-wrap justify-end">
                             <span className={`text-xs font-mono font-black px-2.5 py-0.5 rounded-md shadow-3xs select-none ${
                               isConsultingSelf 
-                                ? 'text-slate-805 bg-white border border-slate-200' 
-                                : 'text-indigo-950 bg-white border border-indigo-250'
+                                ? 'text-slate-800 bg-white border border-slate-200' 
+                                : 'text-indigo-950 bg-white border border-indigo-200'
                             }`}>
                               Palpite de {consultedParticipant.name}: {myGuess.homeScoreGuess} x {myGuess.awayScoreGuess}
                             </span>
@@ -794,7 +1024,7 @@ export default function MatchesList({
                             {m.homeScore !== null && m.awayScore !== null && (
                               <div className="inline-flex">
                                 {scoreResult.points === 3 ? (
-                                  <span className="bg-emerald-50 text-emerald-800 border border-emerald-250 text-[9px] font-black px-2 py-0.5 rounded-md select-none shadow-3xs">
+                                  <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-[9px] font-black px-2 py-0.5 rounded-md select-none shadow-3xs">
                                     🥇 +3 pts (Exato!)
                                   </span>
                                 ) : scoreResult.points === 1 ? (
@@ -802,7 +1032,7 @@ export default function MatchesList({
                                     🥈 +1 pt (Parcial)
                                   </span>
                                 ) : (
-                                  <span className="bg-slate-100 text-slate-400 border border-slate-220 text-[9px] font-bold px-2 py-0.5 rounded-md select-none shadow-3xs">
+                                  <span className="bg-slate-100 text-slate-400 border border-slate-200 text-[9px] font-bold px-2 py-0.5 rounded-md select-none shadow-3xs">
                                     0 pts
                                   </span>
                                 )}
@@ -919,7 +1149,7 @@ export default function MatchesList({
                               <button
                                 type="button"
                                 disabled
-                                className="w-full sm:w-auto py-2.5 px-4 rounded-xl text-[11px] font-extrabold uppercase tracking-wider bg-emerald-50/50 border border-emerald-250 text-emerald-700 flex items-center justify-center gap-1.5 select-none cursor-default"
+                                className="w-full sm:w-auto py-2.5 px-4 rounded-xl text-[11px] font-extrabold uppercase tracking-wider bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center gap-1.5 select-none cursor-default"
                               >
                                 <CheckCircle className="w-4 h-4 shrink-0 text-emerald-500" />
                                 <span>Palpite Salvo</span>
@@ -932,10 +1162,10 @@ export default function MatchesList({
                             <button
                               type="button"
                               onClick={() => handleSaveGuessClick(m.id)}
-                              className="w-full sm:w-auto py-2.5 px-5 rounded-xl text-[11px] font-black uppercase tracking-wider bg-gradient-to-b from-emerald-650 to-emerald-850 hover:from-emerald-550 hover:to-emerald-750 text-white ring-2 ring-yellow-450 border border-emerald-500 hover:border-emerald-400 shadow-md shadow-emerald-750/35 flex items-center justify-center gap-1.5 transform active:scale-95 transition-all duration-200 cursor-pointer"
+                              className="w-full sm:w-auto py-2.5 px-5 rounded-xl text-[11px] font-black uppercase tracking-wider bg-gradient-to-b from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700 text-white ring-2 ring-yellow-400 border border-emerald-500 hover:border-emerald-400 shadow-md flex items-center justify-center gap-1.5 transform active:scale-95 transition-all duration-200 cursor-pointer"
                               id={`save-guess-btn-${m.id}`}
                             >
-                              <Save className="w-4 h-4 shrink-0 text-yellow-350" />
+                              <Save className="w-4 h-4 shrink-0 text-yellow-400" />
                               <span>Gravar Palpite</span>
                             </button>
                           );
@@ -949,33 +1179,68 @@ export default function MatchesList({
 
               {/* ADMIN MODE OVERRIDES ROW FOR SCORE SAVE */}
               {isAdminMode && (
-                <div className="bg-amber-50/20 px-5 py-3 border-t border-amber-100 flex flex-col xs:flex-row justify-between items-center gap-2">
-                  <span className="text-[10px] text-amber-800 font-black tracking-widest uppercase flex items-center gap-1 select-none">
+                <div className="bg-amber-50/25 px-5 py-3 border-t border-amber-150 flex flex-col xs:flex-row justify-between items-center gap-2">
+                  <span className="text-[10px] text-amber-900 font-black tracking-widest uppercase flex items-center gap-1 select-none">
                     <Sparkles className="w-3.5 h-3.5 animate-pulse text-amber-600" />
                     <span>Controlador de Partida</span>
                   </span>
 
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-1 rounded text-[9px] font-black uppercase select-none tracking-wider">
-                      Status: Finalizado
-                    </span>
+                    <div className="flex items-center gap-1 bg-amber-100/80 border border-amber-300 rounded-lg px-2 py-1">
+                      <span className="text-[9px] font-black uppercase text-amber-800 mr-1 select-none font-mono">Status:</span>
+                      <select
+                        value={selectedStatus}
+                        onChange={(e) => handleAdminStatusChange(m.id, e.target.value as 'SCHEDULED' | 'LIVE' | 'FINISHED')}
+                        className="bg-transparent text-amber-950 font-mono font-extrabold text-[10px] uppercase select-none tracking-wide cursor-pointer outline-none border-none py-0 px-1 focus:ring-0"
+                      >
+                        <option value="SCHEDULED">🔮 Agendado</option>
+                        <option value="LIVE">🔴 Ao Vivo</option>
+                        <option value="FINISHED">🏁 Finalizado</option>
+                      </select>
+                    </div>
+
+                    {selectedStatus === 'LIVE' && (
+                      <div className="flex items-center gap-1 bg-amber-100/80 border border-amber-300 rounded-lg px-2 py-1 animate-fade-in">
+                        <span className="text-[9px] font-black uppercase text-amber-800 mr-1 select-none font-mono">Minuto:</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={adminScores[m.id]?.minute !== undefined ? adminScores[m.id]?.minute : m.minute}
+                          onChange={(e) => handleAdminMinuteChange(m.id, e.target.value)}
+                          className="w-10 text-center font-mono font-black text-xs text-amber-950 bg-white border border-amber-350 rounded-md py-0.5 outline-hidden"
+                        />
+                        <span className="text-[9px] font-extrabold text-amber-800 font-mono select-none">'</span>
+                      </div>
+                    )}
 
                     <button
                       onClick={() => {
                         const finalHome = currentAdminHomeScore !== null && currentAdminHomeScore !== undefined && String(currentAdminHomeScore).trim() !== '' ? Number(currentAdminHomeScore) : null;
                         const finalAway = currentAdminAwayScore !== null && currentAdminAwayScore !== undefined && String(currentAdminAwayScore).trim() !== '' ? Number(currentAdminAwayScore) : null;
                         
+                        const finalMinute = selectedStatus === 'LIVE' 
+                          ? (adminScores[m.id]?.minute !== undefined ? adminScores[m.id]?.minute : m.minute)
+                          : (selectedStatus === 'FINISHED' ? 90 : 0);
+
                         onUpdateActualScore(
                           m.id,
                           finalHome,
                           finalAway,
-                          'FINISHED'
+                          selectedStatus,
+                          finalMinute
                         );
 
                         // Trigger visual success confirmation feedback
                         setAdminSavedIds((prev) => ({ ...prev, [m.id]: true }));
                         setTimeout(() => {
                           setAdminSavedIds((prev) => ({ ...prev, [m.id]: false }));
+                          // Clear the adminScores local override for that match, so it falls back to the database-synced state
+                          setAdminScores((prevAdminScores) => {
+                            const updated = { ...prevAdminScores };
+                            delete updated[m.id];
+                            return updated;
+                          });
                         }, 2000);
                       }}
                       className={`py-1 px-3.5 rounded-lg text-white font-extrabold text-[10px] uppercase tracking-wider cursor-pointer shadow-3xs select-none transition-all duration-300 ${
@@ -1026,7 +1291,7 @@ export default function MatchesList({
                           className={`flex items-center justify-between p-2 rounded-lg border text-xs ${
                             isSelf
                               ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-semibold'
-                              : 'bg-white border-slate-205 text-slate-700 shadow-2xs'
+                              : 'bg-white border-slate-200 text-slate-700 shadow-2xs'
                           }`}
                         >
                           <div className="flex items-center gap-2">
@@ -1045,10 +1310,10 @@ export default function MatchesList({
                                   <span
                                     className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-sm border ${
                                       otherPoints.points === 3
-                                        ? 'text-emerald-700 bg-emerald-100 border-emerald-250'
+                                        ? 'text-emerald-700 bg-emerald-100 border-emerald-200'
                                         : otherPoints.points > 0
-                                        ? 'text-blue-700 bg-blue-105 border-blue-200'
-                                        : 'text-slate-505 bg-slate-100 border-slate-200'
+                                        ? 'text-blue-700 bg-blue-50 border-blue-200'
+                                        : 'text-slate-500 bg-slate-100 border-slate-200'
                                     }`}
                                     title={`Ganhou ${otherPoints.points} pontos com este palpite.`}
                                   >
@@ -1072,6 +1337,41 @@ export default function MatchesList({
       ) : (
         <div className="bg-white border border-dashed border-emerald-100 rounded-2xl p-10 text-center text-slate-400 text-xs font-semibold" id="no-matches-on-day">
           ⚽ Nenhuma partida encontrada com os filtros selecionados.
+        </div>
+      )}
+
+      {/* Floating Save All Guesses bar */}
+      {dirtyMatchesInfo.length > 0 && onSaveMultipleGuesses && (
+        <div className="fixed bottom-[74px] lg:bottom-6 left-1/2 -translate-x-1/2 z-40 w-11/12 max-w-md bg-slate-900 border border-slate-700/60 shadow-2xl rounded-2xl p-3.5 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300 animate-slide-up-custom" id="matches-floating-bulk-save">
+          <div className="text-left">
+            <span className="text-[9px] uppercase font-bold tracking-widest text-emerald-400 block select-none">
+              Palpites Pendentes
+            </span>
+            <span className="text-white text-xs font-bold leading-tight block">
+              {dirtyMatchesInfo.length} palpite(s) não gravado(s)
+            </span>
+          </div>
+          <button
+            onClick={handleBulkSave}
+            disabled={isBulkSaving}
+            className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all flex items-center gap-1.5 shadow-md active:scale-95 disabled:bg-slate-700 disabled:text-slate-500 select-none shrink-0"
+            id="matches-floating-bulk-save-btn"
+          >
+            {isBulkSaving ? (
+              <>
+                <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                <span>Gravando...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-3.5 h-3.5 shrink-0" />
+                <span>Gravar Todos</span>
+              </>
+            )}
+          </button>
         </div>
       )}
     </div>
