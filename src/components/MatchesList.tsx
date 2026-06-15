@@ -283,6 +283,19 @@ export default function MatchesList({
     }
   }, [uniqueDates, selectedDate]);
 
+  // Auto-scroll selected date to the center of the list
+  useEffect(() => {
+    if (!selectedDate) return;
+    const timer = setTimeout(() => {
+      const sanitizedId = `date-chip-${selectedDate.replace(' ', '-')}`;
+      const element = document.getElementById(sanitizedId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [selectedDate]);
+
   // filter only for selected day matches or round matches + searchQuery text search
   const filteredMatches = useMemo(() => {
     return sortedAllMatches.filter((m) => {
@@ -882,19 +895,19 @@ export default function MatchesList({
                     {m.homeFlag && m.homeFlag.startsWith('http') ? (
                       <img 
                         src={m.homeFlag} 
-                        className="w-6 h-6 sm:w-10 sm:h-10 object-contain shrink-0 filter drop-shadow-xs animate-fade-in" 
+                        className="w-8 h-5.5 sm:w-12 sm:h-8.5 object-cover rounded-md shrink-0 filter drop-shadow-xs animate-fade-in" 
                         alt={m.homeTeam} 
                         referrerPolicy="no-referrer" 
                       />
                     ) : (
-                      <span className="text-xl sm:text-3xl filter drop-shadow-xs select-none shrink-0" role="img" aria-label={m.homeTeam}>
+                      <span className="text-3xl xs:text-4xl sm:text-5xl filter drop-shadow-xs select-none shrink-0 leading-none" role="img" aria-label={m.homeTeam}>
                         {m.homeFlag}
                       </span>
                     )}
                   </div>
 
                   {/* Score / Selector Center Column */}
-                  <div className="flex-shrink-0 flex justify-center items-center px-1 sm:px-2 min-w-[70px] sm:min-w-[100px]">
+                  <div className="flex-shrink-0 flex justify-center items-center px-1 sm:px-2 min-w-[80px] xs:min-w-[90px] sm:min-w-[120px]">
                     {isAdminMode ? (
                       /* DEEP ADMINISTRATOR ACTIVE OVERRIDES */
                       <div className="flex flex-col items-center gap-1.5" id={`admin-override-box-${m.id}`}>
@@ -927,16 +940,16 @@ export default function MatchesList({
                     ) : (
                       /* OFFICIAL GAME SCOREBOARD */
                       <div className="flex flex-col items-center gap-1">
-                        <span className="text-[9px] font-black text-slate-500 tracking-wider uppercase select-none whitespace-nowrap">
-                          Placar Oficial
+                        <span className="text-[9px] font-black text-slate-500/90 tracking-wider uppercase select-none whitespace-nowrap animate-fade-in">
+                          {isLive ? '🔴 AO VIVO' : isFinished ? '✅ Placar Final' : 'Placar Oficial'}
                         </span>
                         {isScheduled ? (
-                          <div className="text-slate-500 font-black text-[11px] sm:text-xs bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg select-none">
+                          <div className="text-slate-500 font-black text-xs sm:text-sm bg-slate-50 border border-slate-200 px-3 py-1 rounded-xl select-none">
                             VS
                           </div>
                         ) : (
-                          <div className={`flex items-center gap-1 bg-slate-100 px-3 py-1 border border-slate-200 shadow-3xs font-mono font-black text-xs sm:text-sm text-slate-900 select-none rounded-lg ${
-                            isLive ? 'bg-rose-50 border-rose-200 text-rose-700 animate-pulse' : ''
+                          <div className={`flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 sm:px-4 sm:py-2 border-2 border-slate-200/95 shadow-3xs font-mono font-black text-sm xs:text-base sm:text-lg md:text-xl text-slate-900 select-none rounded-xl ${
+                            isLive ? 'bg-rose-50 border-rose-350 text-rose-700 animate-pulse' : ''
                           }`}>
                             <span>{m.homeScore !== null ? m.homeScore : '-'}</span>
                             <span className="text-slate-400 font-normal">:</span>
@@ -952,12 +965,12 @@ export default function MatchesList({
                     {m.awayFlag && m.awayFlag.startsWith('http') ? (
                       <img 
                         src={m.awayFlag} 
-                        className="w-6 h-6 sm:w-10 sm:h-10 object-contain shrink-0 filter drop-shadow-xs animate-fade-in" 
+                        className="w-8 h-5.5 sm:w-12 sm:h-8.5 object-cover rounded-md shrink-0 filter drop-shadow-xs animate-fade-in" 
                         alt={m.awayTeam} 
                         referrerPolicy="no-referrer" 
                       />
                     ) : (
-                      <span className="text-xl sm:text-3xl filter drop-shadow-xs select-none shrink-0" role="img" aria-label={m.awayTeam}>
+                      <span className="text-3xl xs:text-4xl sm:text-5xl filter drop-shadow-xs select-none shrink-0 leading-none" role="img" aria-label={m.awayTeam}>
                         {m.awayFlag}
                       </span>
                     )}
