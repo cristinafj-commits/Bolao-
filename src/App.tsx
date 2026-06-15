@@ -1370,7 +1370,7 @@ export default function App() {
       </header>
 
       {/* Main Container Workspace */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 space-y-6" id="app-main">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 pb-6 lg:pb-8 space-y-6" id="app-main">
         {/* Floating notifications */}
         <AnimatePresence>
           {toastMessage && (
@@ -1791,7 +1791,7 @@ export default function App() {
       />
 
       {/* Universal Footer Credit */}
-      <footer className="bg-emerald-950 border-t-2 border-yellow-500 py-6 text-center text-xs text-emerald-100 mt-12 pb-24 lg:pb-6 space-y-1.5" id="app-footer-credit">
+      <footer className="bg-emerald-950 border-t-2 border-yellow-500 py-6 text-center text-xs text-emerald-100 mt-6 pb-24 lg:pb-6 space-y-1.5" id="app-footer-credit">
         <p>🏆 Bolão Copa do Mundo 2026 - Versão Premium adaptado com as Cores de 🇧🇷.</p>
         <p className="text-[10px] text-emerald-250/80">Calculadoras robustas de pontos com desempate matemático integrados • Salvamento automático em cache LocalStorage.</p>
       </footer>
