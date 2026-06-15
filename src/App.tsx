@@ -1355,14 +1355,16 @@ export default function App() {
               <span>{isAdminMode ? 'Sair Admin' : 'Admin'}</span>
             </button>
 
-            <button
-              onClick={handleResetDatabaseAll}
-              className="p-1 rounded-lg bg-emerald-900 hover:bg-red-750 text-red-105 border border-emerald-750/30 transition cursor-pointer shrink-0"
-              title="Resetar Banco de Dados completo do Bolão"
-              id="wipe-db-btn"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
+            {isAdminMode && (
+              <button
+                onClick={handleResetDatabaseAll}
+                className="p-1 rounded-lg bg-emerald-900 hover:bg-red-750 text-red-105 border border-emerald-750/30 transition cursor-pointer shrink-0"
+                title="Resetar Banco de Dados completo do Bolão"
+                id="wipe-db-btn"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </header>

@@ -33,9 +33,13 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
   const [cycleIndex, setCycleIndex] = useState(0);
   const [selectedAuditParticipant, setSelectedAuditParticipant] = useState<Participant | null>(null);
 
-  // Determine actual leaders (all participants who have complete guesses and the highest points)
-  const leadScore = firstStat ? firstStat.points : null;
-  const leaders = scores.filter((s) => s.points === leadScore).map((s) => {
+  // Determine actual leaders (all participants who have complete guesses and match the top leader on all primary tie-breaker criteria)
+  const leaders = scores.filter((s) => 
+    firstStat && 
+    s.points === firstStat.points && 
+    s.exactScores === firstStat.exactScores && 
+    s.correctOutcomes === firstStat.correctOutcomes
+  ).map((s) => {
     const p = participants.find((x) => x.id === s.participantId);
     return { p, s };
   }).filter((item) => item.p !== undefined) as { p: Participant; s: ParticipantScores }[];
@@ -507,17 +511,6 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
       {/* Main Table Content wrapped in spacious padding */}
       {activeTab === 'classificacao' && (
         <div className="p-4 sm:p-5 space-y-4">
-
-          {/* Tie-breaker Criteria Info Legend */}
-          <div className="bg-emerald-50/50 border border-emerald-100 rounded-xl px-3 py-2 flex items-center gap-2">
-            <span className="text-[12px] shrink-0" role="img" aria-label="info">ℹ️</span>
-            <div className="text-left text-[9.5px] sm:text-[10px] leading-normal text-emerald-850">
-              <span className="font-extrabold text-emerald-950">Mais que total de pontos! Critérios de desempate:</span>{' '}
-              <span className="font-semibold text-emerald-800">1º Mais Placares Exatos</span> •{' '}
-              <span className="font-semibold text-emerald-800">2º Mais Acertos Parciais</span> •{' '}
-              <span className="font-normal text-emerald-700/80">3º Sorteio/Ordem Alfabética (conforme regulamento)</span>
-            </div>
-          </div>
 
           <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-slate-50/20 shadow-xs">
             
