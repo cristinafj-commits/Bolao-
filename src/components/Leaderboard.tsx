@@ -513,7 +513,10 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
             {/* Enhanced Grid Table Header */}
             <div className="grid grid-cols-12 gap-1.5 sm:gap-2 bg-slate-50 border-b border-blue-100 px-3 sm:px-4 py-3 text-slate-550 font-black text-[9px] sm:text-[10px] uppercase tracking-wider">
               <div className="col-span-1 text-center" title="Posição">Pos</div>
-              <div className="col-span-3 sm:col-span-4 text-left pl-1 sm:pl-3">Participante</div>
+              <div className="col-span-3 sm:col-span-4 text-left pl-1 sm:pl-3">
+                <span className="hidden sm:inline">Participante</span>
+                <span className="sm:hidden">Partic.</span>
+              </div>
               <div className="col-span-2 text-center" title="Placares Exatos acertados (5 pontos)">
                 Exatos
               </div>
@@ -654,24 +657,21 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
 
                       {/* Dynamic Total Points */}
                       <div className="col-span-2 text-right pr-1 sm:pr-2 flex flex-col items-end justify-center">
-                        <div className={`font-mono leading-none tracking-tight flex items-center justify-end gap-0.5 sm:gap-1 ${
+                        <div className={`font-mono leading-none tracking-tight flex items-center justify-end ${
                           stat.isIncomplete 
                             ? 'text-slate-400 font-bold text-xs line-through' 
                             : isCurrentUser 
                               ? 'text-sm sm:text-lg font-black text-emerald-650' 
                               : 'text-xs sm:text-sm md:text-base font-extrabold text-slate-800'
                         }`}>
-                          <span>{stat.points}</span>
-                          {!stat.isIncomplete && (
-                            <Eye className="w-3 h-3 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:inline shrink-0" />
-                          )}
+                          {stat.points}
                         </div>
-                        <div className="text-[7.5px] sm:text-[8px] uppercase font-black text-slate-400 tracking-wider mt-0.5 select-none leading-none flex items-center justify-end gap-0.5">
-                          <span>pontos</span>
-                          {!stat.isIncomplete && (
-                            <Eye className="w-2.5 h-2.5 text-slate-400 inline sm:hidden shrink-0" />
-                          )}
-                        </div>
+                        {!stat.isIncomplete && (
+                          <div className="text-[7px] sm:text-[8px] uppercase font-black text-slate-400 tracking-wider mt-0.5 select-none leading-none flex items-center justify-end gap-0.5 group-hover:text-emerald-650 transition-colors">
+                            <span>conferir</span>
+                            <Eye className="w-2 sm:w-2.5 h-2 sm:h-2.5 text-slate-400 group-hover:text-emerald-500 transition-colors shrink-0" />
+                          </div>
+                        )}
                       </div>
 
                     </motion.div>
