@@ -29,15 +29,7 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
 
   const [cycleIndex, setCycleIndex] = useState(0);
 
-  useEffect(() => {
-    if (scores.length === 0) return;
-    const interval = setInterval(() => {
-      setCycleIndex((prev) => prev + 1);
-    }, 6000); // alternate every 6 seconds
-    return () => clearInterval(interval);
-  }, [scores.length]);
-
-  // Determine actual leaders (all participants with the highest points)
+  // Determine actual leaders (all participants who have complete guesses and the highest points)
   const leadScore = firstStat ? firstStat.points : null;
   const leaders = scores.filter((s) => s.points === leadScore).map((s) => {
     const p = participants.find((x) => x.id === s.participantId);
@@ -49,14 +41,14 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
   const activeLeaderStat = activeLeaderItem ? activeLeaderItem.s : null;
 
   const renderLeaderPhrase = (name: string, points: number, id: string) => {
-    // Deterministic base hash index + current cycleIndex to shift/alternate phrases gracefully
+    // Deterministic base hash index + manual cycleIndex to change or alternate manually
     let hash = 0;
     const combinedStr = id + name;
     for (let i = 0; i < combinedStr.length; i++) {
        hash = (hash << 5) - hash + combinedStr.charCodeAt(i);
        hash |= 0;
     }
-    const index = (Math.abs(hash) + cycleIndex) % 8;
+    const index = (Math.abs(hash) + cycleIndex) % 24;
 
     const leaderNameSpan = (
       <span className="font-black text-amber-950 uppercase bg-amber-200/50 px-1.5 py-0.5 rounded-md inline-block">
@@ -111,10 +103,106 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
           </p>
         );
       case 7:
-      default:
         return (
           <p className="text-[12px] text-slate-800 font-bold leading-normal">
             Atenção: nível altíssimo de apelação detectado! {leaderNameSpan} assumiu o trono com {pointsSpan} e já pode pedir música no Fantástico! 🎶👑🍾
+          </p>
+        );
+      case 8:
+        return (
+          <p className="text-[12px] text-slate-800 font-bold leading-normal">
+            A concorrência que lute! {leaderNameSpan} está ostentando {pointsSpan} no topo e exalando a pura aura de campeão! 💎  💫
+          </p>
+        );
+      case 9:
+        return (
+          <p className="text-[12px] text-slate-800 font-bold leading-normal">
+            Alguém confira o cafezinho de {leaderNameSpan}, porque o líder tá muito inspirado! Liderando com soberania absoluta com {pointsSpan}! ☕🔥🏁
+          </p>
+        );
+      case 10:
+        return (
+          <p className="text-[12px] text-slate-800 font-bold leading-normal">
+            O terror dos secadores! Ninguém consegue derrubar {leaderNameSpan}, firme e forte com seus {pointsSpan} impecáveis! 🔒🧿🧤
+          </p>
+        );
+      case 11:
+        return (
+          <p className="text-[12px] text-slate-800 font-bold leading-normal">
+            Que categoria! {leaderNameSpan} joga de terno e gravata na liderança, somando {pointsSpan} com extrema elegância! 🤵👔⚽
+          </p>
+        );
+      case 12:
+        return (
+          <p className="text-[12px] text-slate-800 font-bold leading-normal">
+            O pódio de ouro tem dono! {leaderNameSpan} agarrou o topo com {pointsSpan} e se bobear vai montar residência definitiva por lá! 🏰🚩✨
+          </p>
+        );
+      case 13:
+        return (
+          <p className="text-[12px] text-slate-800 font-bold leading-normal">
+            Simplesmente inacreditável! {leaderNameSpan} engoliu o manual da Copa e lidera o pelotão com {pointsSpan}. Que fase espetacular! 📚🤩🌠
+          </p>
+        );
+      case 14:
+        return (
+          <p className="text-[12px] text-slate-800 font-bold leading-normal">
+            Se palpite fosse obra de arte, {leaderNameSpan} seria o pintor do bolão! Pincelando o topo com memoráveis {pointsSpan}! 🎨🎭🪄
+          </p>
+        );
+      case 15:
+        return (
+          <p className="text-[12px] text-slate-800 font-bold leading-normal">
+            Para tudo! {leaderNameSpan} tá impossível, doutrinando a tabela com fantásticos {pointsSpan}. Quem tem limite é município! 🗺️🚀🔥
+          </p>
+        );
+      case 16:
+        return (
+          <p className="text-[12px] text-slate-800 font-bold leading-normal">
+            Liderança de respeito! {leaderNameSpan} com {pointsSpan} tá parecendo técnico de copa do mundo. Só falta dar entrevista coletiva! 🎤📋🔥
+          </p>
+        );
+      case 17:
+        return (
+          <p className="text-[12px] text-slate-800 font-bold leading-normal">
+            Previsões milagrosas de {leaderNameSpan}! Está mais confiável que a previsão do tempo, brilhando eternizado no topo com {pointsSpan}! ☀️🔮🌡️
+          </p>
+        );
+      case 18:
+        return (
+          <p className="text-[12px] text-slate-800 font-bold leading-normal">
+            Que espetáculo de liderança! Seguir {leaderNameSpan} na tabela tá parecendo corrida de Fórmula 1 na chuva. Pontuação máxima de {pointsSpan}! 🏎️🏁🎉
+          </p>
+        );
+      case 19:
+        return (
+          <p className="text-[12px] text-slate-800 font-bold leading-normal">
+            Majestoso! O império de {leaderNameSpan} está consolidado no trono de primeiro lugar com {pointsSpan}. Vida longa à liderança! 👑🏰🛡️
+          </p>
+        );
+      case 20:
+        return (
+          <p className="text-[12px] text-slate-800 font-bold leading-normal">
+            Sai da frente que o líder tá em alta velocidade! {leaderNameSpan} atingiu incríveis {pointsSpan} e rompeu todos os limites! 🛞💨🚨
+          </p>
+        );
+      case 21:
+        return (
+          <p className="text-[12px] text-slate-800 font-bold leading-normal">
+            Sensacional! {leaderNameSpan} tá acertando mais precisão que algoritmo de inteligência artificial espacial. Líder absoluto com {pointsSpan}! 🤖📊💻
+          </p>
+        );
+      case 22:
+        return (
+          <p className="text-[12px] text-slate-800 font-bold leading-normal">
+            Alerta de gênio tático! {leaderNameSpan} com {pointsSpan} tá operando verdadeiras obras-primas de placar na tabela histórica do bolão! 🕯️💫⚽
+          </p>
+        );
+      case 23:
+      default:
+        return (
+          <p className="text-[12px] text-slate-800 font-bold leading-normal">
+            Sem palavras para a precisão milimétrica de {leaderNameSpan}! Cravou os resultados e reina como realeza com {pointsSpan}! 🩺⚔️🎖️
           </p>
         );
     }
