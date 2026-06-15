@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Award, Target, HelpCircle, Check, Play, Crown, Sparkles, Flame, TrendingUp, X, Trophy, Gift, Briefcase, GraduationCap } from 'lucide-react';
+import { Award, Target, HelpCircle, Check, Play, Crown, Sparkles, Flame, TrendingUp, X, Trophy, Gift, Briefcase, GraduationCap, RefreshCw } from 'lucide-react';
 import { Participant, ParticipantScores } from '../types';
 
 interface LeaderboardProps {
@@ -27,15 +27,36 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
 
   const [activeTab, setActiveTab ] = useState<'classificacao' | 'premiacao'>('classificacao');
 
+  const [cycleIndex, setCycleIndex] = useState(0);
+
+  useEffect(() => {
+    if (scores.length === 0) return;
+    const interval = setInterval(() => {
+      setCycleIndex((prev) => prev + 1);
+    }, 6000); // alternate every 6 seconds
+    return () => clearInterval(interval);
+  }, [scores.length]);
+
+  // Determine actual leaders (all participants with the highest points)
+  const leadScore = firstStat ? firstStat.points : null;
+  const leaders = scores.filter((s) => s.points === leadScore).map((s) => {
+    const p = participants.find((x) => x.id === s.participantId);
+    return { p, s };
+  }).filter((item) => item.p !== undefined) as { p: Participant; s: ParticipantScores }[];
+
+  const activeLeaderItem = leaders.length > 0 ? leaders[cycleIndex % leaders.length] : null;
+  const activeLeader = activeLeaderItem ? activeLeaderItem.p : null;
+  const activeLeaderStat = activeLeaderItem ? activeLeaderItem.s : null;
+
   const renderLeaderPhrase = (name: string, points: number, id: string) => {
-    // Deterministic index determination based on leader ID and name
+    // Deterministic base hash index + current cycleIndex to shift/alternate phrases gracefully
     let hash = 0;
     const combinedStr = id + name;
     for (let i = 0; i < combinedStr.length; i++) {
        hash = (hash << 5) - hash + combinedStr.charCodeAt(i);
        hash |= 0;
     }
-    const index = Math.abs(hash) % 8;
+    const index = (Math.abs(hash) + cycleIndex) % 8;
 
     const leaderNameSpan = (
       <span className="font-black text-amber-950 uppercase bg-amber-200/50 px-1.5 py-0.5 rounded-md inline-block">
@@ -341,16 +362,49 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
 
           </div>
 
-          {/* Simple and clean direct leader tribute phrase right on the podium, no actions needed */}
-          {firstParticipant && firstStat && (
-            <div className="mt-4 mx-auto max-w-sm bg-gradient-to-r from-amber-500/15 via-yellow-450/10 to-amber-500/15 border-2 border-dashed border-amber-400/60 rounded-2xl px-4 py-3 text-center shadow-xs animate-in fade-in duration-300">
-              <div className="flex items-center justify-center gap-1.5 mb-1">
-                <Crown className="w-4 h-4 text-amber-600 animate-bounce shrink-0" />
-                <span className="text-[10px] text-amber-850 font-black tracking-widest uppercase font-mono">🚨 ALERTA DE LENDA! 🚨</span>
+          {/* Simple and clean direct leader tribute phrase right on the podium, now rotating and cycling between all leaders and phrases! */}
+          {activeLeader && activeLeaderStat && (
+            <div className="mt-4 mx-auto max-w-sm bg-gradient-to-r from-amber-500/15 via-yellow-450/10 to-amber-500/15 border-2 border-dashed border-amber-400/60 rounded-2xl px-4 py-3 text-center shadow-xs animate-in fade-in duration-300 relative">
+              <div className="flex items-center justify-between mb-1.55">
+                <div className="w-6 h-6" /> {/* spacer */}
+                <div className="flex items-center justify-center gap-1.5">
+                  <Crown className="w-4 h-4 text-amber-600 animate-bounce shrink-0" />
+                  <span className="text-[10px] text-amber-850 font-black tracking-widest uppercase font-mono">
+                    {leaders.length > 1 ? '🚨 LÍDERES EMPATADOS! 🚨' : '🚨 ALERTA DE LENDA! 🚨'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCycleIndex((prev) => prev + 1)}
+                  className="p-1 hover:bg-amber-500/10 rounded-full transition-all duration-200 text-amber-700 hover:scale-110 active:scale-90 cursor-pointer flex items-center justify-center"
+                  title="Próxima homenagem"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 transition-transform duration-500 active:rotate-180" />
+                </button>
               </div>
-              {renderLeaderPhrase(firstParticipant.name, firstStat.points, firstParticipant.id)}
-              <div className="mt-1.5 text-[10px] text-slate-500 font-black font-mono">
-                🎯 {firstStat.exactScores} placar{firstStat.exactScores !== 1 ? 'es' : ''} na mosca!
+              
+              <div className="min-h-[44px] flex items-center justify-center">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={`${activeLeader.id}-${cycleIndex}`}
+                    initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                    transition={{ duration: 0.2 }}
+                    className="w-full"
+                  >
+                    {renderLeaderPhrase(activeLeader.name, activeLeaderStat.points, activeLeader.id)}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+
+              <div className="mt-2 text-[10px] text-slate-500 font-black font-mono flex items-center justify-center gap-1 flex-wrap">
+                <span>🎯 {activeLeaderStat.exactScores} placar{activeLeaderStat.exactScores !== 1 ? 'es' : ''} na mosca!</span>
+                {leaders.length > 1 && (
+                  <span className="text-amber-800/80 font-black">
+                    ({(cycleIndex % leaders.length) + 1} de {leaders.length} líderes)
+                  </span>
+                )}
               </div>
             </div>
           )}
