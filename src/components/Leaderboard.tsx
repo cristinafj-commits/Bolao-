@@ -533,13 +533,9 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
                               </span>
                             )}
                           </h4>
-                          {stat.isIncomplete ? (
+                          {stat.isIncomplete && (
                             <p className="text-[9.5px] text-amber-600 font-extrabold mt-0.5 truncate uppercase">
                               🚫 Classificação congelada (Falta palpitar jogos!)
-                            </p>
-                          ) : (
-                            <p className="text-[10px] text-slate-450 font-mono mt-0.5 truncate uppercase">
-                              {stat.exactScores} exato{stat.exactScores !== 1 ? 's' : ''} • {stat.correctOutcomes} parcial{stat.correctOutcomes !== 1 ? 'es' : ''}
                             </p>
                           )}
                         </div>
