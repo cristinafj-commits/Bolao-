@@ -687,6 +687,29 @@ export default function App() {
     }
   };
 
+  const handleUpdateParticipantName = async (pId: string, name: string) => {
+    const target = participants.find((p) => p.id === pId);
+    if (!target) return;
+
+    // Update state
+    const updatedParticipants = participants.map((p) => {
+      if (p.id === pId) {
+        return { ...p, name };
+      }
+      return p;
+    });
+    setParticipants(updatedParticipants);
+
+    // Sync to database
+    try {
+      await setDoc(doc(db, "usuarios", pId), {
+        nome: name,
+      }, { merge: true });
+    } catch (err) {
+      console.error("Erro ao atualizar nome no Firebase:", err);
+    }
+  };
+
   const handleUpdateRole = async (pId: string, role: 'servidor' | 'estagiario') => {
     const target = participants.find((p) => p.id === pId);
     if (!target) return;
@@ -1438,6 +1461,7 @@ export default function App() {
                     isAdminMode={isAdminMode}
                     onUnlockParticipant={handleUnlockParticipant}
                     onUpdateAvatar={handleUpdateAvatar}
+                    onUpdateParticipantName={handleUpdateParticipantName}
                     onUpdateParticipantRole={handleUpdateRole}
                     onLockGuesses={handleLockGuesses}
                     onGoToGuesses={() => setMobileActiveTab('jogos')}

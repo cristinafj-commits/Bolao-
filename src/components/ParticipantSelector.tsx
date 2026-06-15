@@ -12,6 +12,7 @@ interface ParticipantSelectorProps {
   isAdminMode?: boolean;
   onUnlockParticipant?: (id: string) => void;
   onUpdateAvatar?: (id: string, avatar: string, imageUrl?: string) => void;
+  onUpdateParticipantName?: (id: string, name: string) => void;
   onUpdateParticipantRole?: (id: string, role: 'servidor' | 'estagiario') => void;
   onLockGuesses?: () => void;
   onGoToGuesses?: () => void;
@@ -27,6 +28,7 @@ export default function ParticipantSelector({
   isAdminMode,
   onUnlockParticipant,
   onUpdateAvatar,
+  onUpdateParticipantName,
   onUpdateParticipantRole,
   onLockGuesses,
   onGoToGuesses,
@@ -48,6 +50,7 @@ export default function ParticipantSelector({
   // Specific editing states
   const [editingAvatarId, setEditingAvatarId] = useState<string | null>(null);
   const [editAvatarEmoji, setEditAvatarEmoji] = useState('⚽');
+  const [editName, setEditName] = useState('');
   const [editingAvatarType, setEditingAvatarType] = useState<'emoji' | 'image'>('emoji');
   const [editingImageUrl, setEditingImageUrl] = useState('');
   const [isDraggingEdit, setIsDraggingEdit] = useState(false);
@@ -392,12 +395,13 @@ export default function ParticipantSelector({
                         {p.avatar}
                       </span>
                     )}
-                    {isAdminMode && onUpdateAvatar && !p.locked && (
+                    {isAdminMode && onUpdateAvatar && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setEditingAvatarId(isEditingThis ? null : p.id);
                           setEditAvatarEmoji(p.avatar);
+                          setEditName(p.name);
                           setEditingImageUrl(p.imageUrl || '');
                           setEditingAvatarType(p.imageUrl ? 'image' : 'emoji');
                         }}
@@ -449,18 +453,21 @@ export default function ParticipantSelector({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {isAdminMode && onUpdateAvatar && !p.locked && !p.imageUrl && (
+                  {isAdminMode && onUpdateAvatar && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setEditingAvatarId(isEditingThis ? null : p.id);
                         setEditAvatarEmoji(p.avatar);
+                        setEditName(p.name);
+                        setEditingImageUrl(p.imageUrl || '');
+                        setEditingAvatarType(p.imageUrl ? 'image' : 'emoji');
                       }}
                       className="p-1.5 sm:p-2 bg-slate-100 hover:bg-emerald-105 border border-slate-200/50 hover:border-emerald-250 text-slate-500 hover:text-emerald-700 rounded-xl transition-all cursor-pointer shadow-3xs flex items-center justify-center shrink-0"
-                      title="Editar Emoji"
+                      title="Editar Perfil"
                       id={`edit-avatar-trigger-btn-${p.id}`}
                     >
-                      <Smile className="w-4 h-4" />
+                      <Pencil className="w-4 h-4" />
                     </button>
                   )}
 
@@ -522,10 +529,32 @@ export default function ParticipantSelector({
                   className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-3.5 animate-in slide-in-from-top-2 duration-150 text-left mx-1"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="space-y-2">
-                    <span className="text-[10px] uppercase font-extrabold text-emerald-800 tracking-wider">
-                      Atualizar Avatar / Foto de {p.name}
+                  <div className="space-y-3">
+                    <span className="text-[10px] uppercase font-black text-emerald-800 tracking-wider block">
+                      🛠️ Editar Perfil de {p.name}
                     </span>
+
+                    {/* EDIT NAME FIELD */}
+                    <div className="space-y-1 bg-white p-2.5 rounded-xl border border-slate-200">
+                      <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider block">Nome do Participante</label>
+                      <input
+                        type="text"
+                        maxLength={20}
+                        required
+                        value={editName}
+                        onChange={(e) => {
+                          const newName = e.target.value;
+                          setEditName(newName);
+                          if (newName.trim() && onUpdateParticipantName) {
+                            onUpdateParticipantName(p.id, newName.trim());
+                          }
+                        }}
+                        className="w-full text-xs bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg px-2.5 py-1.5 font-bold text-slate-800 outline-hidden transition-all placeholder:text-slate-400"
+                        placeholder="Nome do Participante"
+                      />
+                    </div>
+
+                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block pt-1">Identidade Visual (Avatar/Foto)</span>
 
                     {/* Selector Tabs */}
                     <div className="grid grid-cols-2 gap-1 bg-white p-0.5 rounded-lg border border-slate-205">
