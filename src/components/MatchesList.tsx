@@ -941,7 +941,7 @@ export default function MatchesList({
                       /* OFFICIAL GAME SCOREBOARD */
                       <div className="flex flex-col items-center gap-1">
                         <span className="text-[9px] font-black text-slate-500/90 tracking-wider uppercase select-none whitespace-nowrap animate-fade-in">
-                          {isLive ? '🔴 AO VIVO' : isFinished ? '✅ Placar Final' : 'Placar Oficial'}
+                          {isLive ? 'Placar Parcial' : isFinished ? '✅ Placar Final' : 'Placar Oficial'}
                         </span>
                         {isScheduled ? (
                           <div className="text-slate-500 font-black text-xs sm:text-sm bg-slate-50 border border-slate-200 px-3 py-1 rounded-xl select-none">
