@@ -97,12 +97,12 @@ export function calculateGuessPoints(
   awayGuess: number | string | undefined | null,
   homeActual: number | string | null,
   awayActual: number | string | null
-): { points: number; type: 'EXACT' | 'DIFFERENCE' | 'ONE_TEAM' | 'OUTCOME' | 'ZERO' } {
+): { points: number; bonusPoints: number; type: 'EXACT' | 'DIFFERENCE' | 'ONE_TEAM' | 'OUTCOME' | 'ZERO' } {
   if (homeGuess === undefined || homeGuess === null || homeGuess === '' || awayGuess === undefined || awayGuess === null || awayGuess === '') {
-    return { points: 0, type: 'ZERO' };
+    return { points: 0, bonusPoints: 0, type: 'ZERO' };
   }
   if (homeActual === null || awayActual === null || homeActual === '' || awayActual === '') {
-    return { points: 0, type: 'ZERO' }; // Game hasn't started or no score yet
+    return { points: 0, bonusPoints: 0, type: 'ZERO' }; // Game hasn't started or no score yet
   }
 
   const numHomeGuess = Number(homeGuess);
@@ -111,7 +111,7 @@ export function calculateGuessPoints(
   const numAwayActual = Number(awayActual);
 
   if (isNaN(numHomeGuess) || isNaN(numAwayGuess) || isNaN(numHomeActual) || isNaN(numAwayActual)) {
-    return { points: 0, type: 'ZERO' };
+    return { points: 0, bonusPoints: 0, type: 'ZERO' };
   }
 
   const guessSign = Math.sign(numHomeGuess - numAwayGuess);
@@ -121,16 +121,53 @@ export function calculateGuessPoints(
   const correctOutcome = guessSign === actualSign;
 
   if (!correctOutcome) {
-    return { points: 0, type: 'ZERO' };
+    return { points: 0, bonusPoints: 0, type: 'ZERO' };
   }
 
   // EXACT Match score (e.g. guessed 2-1, ended 2-1)
   if (numHomeGuess === numHomeActual && numAwayGuess === numAwayActual) {
-    return { points: 3, type: 'EXACT' };
+    // Placar exato = 3 pontos
+    // Acertar gols do vencedor = 1 ponto (gols do vencedor sempre certos no placar exato)
+    // Acertar gols do perdedor = 1 ponto (gols do perdedor sempre certos no placar exato)
+    // Não acumula o ponto de resultado (resultado = 0 se exato), conforme solicitado.
+    // Total = 3 + 1 + 1 = 5 pontos.
+    return { points: 5, bonusPoints: 2, type: 'EXACT' };
   }
 
-  // Only outcome correct (e.g. guessed 3-1, ended 1-0) - 1 point
-  return { points: 1, type: 'OUTCOME' };
+  // Determine correct winner/loser goals for non-exact guess but correct outcome
+  let winnerGoalsCorrect = false;
+  let loserGoalsCorrect = false;
+
+  if (numHomeActual > numAwayActual) {
+    // Home is winner, Away is loser
+    winnerGoalsCorrect = numHomeGuess === numHomeActual;
+    loserGoalsCorrect = numAwayGuess === numAwayActual;
+  } else if (numAwayActual > numHomeActual) {
+    // Away is winner, Home is loser
+    winnerGoalsCorrect = numAwayGuess === numAwayActual;
+    loserGoalsCorrect = numHomeGuess === numHomeActual;
+  } else {
+    // Draw (Empate): both scored the same
+    winnerGoalsCorrect = numHomeGuess === numHomeActual;
+    loserGoalsCorrect = numAwayGuess === numAwayActual;
+  }
+
+  // Base: outcome correct = 1 point
+  let pts = 1;
+  let bonusPts = 0;
+  if (winnerGoalsCorrect) {
+    pts += 1;
+    bonusPts += 1;
+  }
+  if (loserGoalsCorrect) {
+    pts += 1;
+    bonusPts += 1;
+  }
+
+  // Map our return to a compatible type so the leaderboard counts it correctly
+  const type = pts === 2 ? 'ONE_TEAM' : 'OUTCOME';
+
+  return { points: pts, bonusPoints: bonusPts, type };
 }
 
 /**
@@ -155,6 +192,7 @@ export function calculateLeaderboard(
 
   return activeParticipants.map((p) => {
     let points = 0;
+    let bonusPoints = 0;
     let exactScores = 0;
     let correctOutcomes = 0;
 
@@ -179,6 +217,7 @@ export function calculateLeaderboard(
           );
 
           points += res.points;
+          bonusPoints += res.bonusPoints;
           if (res.type === 'EXACT') {
             exactScores++;
             pointsBreakdown.exact++;
@@ -215,6 +254,7 @@ export function calculateLeaderboard(
 
     if (!hasFinishedAll) {
       points = 0;
+      bonusPoints = 0;
       exactScores = 0;
       correctOutcomes = 0;
       pointsBreakdown.exact = 0;
@@ -227,6 +267,7 @@ export function calculateLeaderboard(
     return {
       participantId: p.id,
       points,
+      bonusPoints,
       exactScores,
       correctOutcomes,
       pointsBreakdown,

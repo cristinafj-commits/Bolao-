@@ -1397,6 +1397,8 @@ export default function App() {
                 participants={participants}
                 scores={scoresLeaderboard}
                 activeParticipantId={activeParticipantId}
+                matches={matches}
+                guesses={guesses}
               />
             </div>
 

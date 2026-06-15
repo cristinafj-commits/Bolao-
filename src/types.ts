@@ -36,6 +36,7 @@ export interface Guess {
 export interface ParticipantScores {
   participantId: string;
   points: number;
+  bonusPoints: number;
   exactScores: number; // TIE-BREAKER: Exact scores guessed
   correctOutcomes: number; // TIE-BREAKER: Correct outcome but not exact score
   pointsBreakdown: {

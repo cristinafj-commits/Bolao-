@@ -1047,13 +1047,13 @@ export default function MatchesList({
                             
                             {m.homeScore !== null && m.awayScore !== null && (
                               <div className="inline-flex">
-                                {scoreResult.points === 3 ? (
+                                {scoreResult.points === 5 ? (
                                   <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-[9px] font-black px-2 py-0.5 rounded-md select-none shadow-3xs">
-                                    🥇 +3 pts (Exato!)
+                                    🥇 +5 pts (Exato!)
                                   </span>
-                                ) : scoreResult.points === 1 ? (
+                                ) : scoreResult.points > 0 ? (
                                   <span className="bg-blue-50 text-blue-800 border border-blue-200 text-[9px] font-black px-2 py-0.5 rounded-md select-none shadow-3xs">
-                                    🥈 +1 pt (Parcial)
+                                    🥈 +{scoreResult.points} {scoreResult.points === 1 ? 'pt' : 'pts'} (Parcial)
                                   </span>
                                 ) : (
                                   <span className="bg-slate-100 text-slate-400 border border-slate-200 text-[9px] font-bold px-2 py-0.5 rounded-md select-none shadow-3xs">
@@ -1074,13 +1074,13 @@ export default function MatchesList({
                       <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto" id={`edit-guess-panel-${m.id}`}>
                         {m.homeScore !== null && m.awayScore !== null && hasGuessed && (
                           <div className="inline-flex shrink-0">
-                            {scoreResult.points === 3 ? (
+                            {scoreResult.points === 5 ? (
                               <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-black px-2.5 py-1 rounded-lg select-none shadow-3xs flex items-center gap-1">
-                                🥇 +3 pts (Exato!)
+                                🥇 +5 pts (Exato!)
                               </span>
-                            ) : scoreResult.points === 1 ? (
+                            ) : scoreResult.points > 0 ? (
                               <span className="bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-black px-2.5 py-1 rounded-lg select-none shadow-3xs flex items-center gap-1">
-                                🥈 +1 pt (Parcial)
+                                🥈 +{scoreResult.points} {scoreResult.points === 1 ? 'pt' : 'pts'} (Parcial)
                               </span>
                             ) : (
                               <span className="bg-slate-100 text-slate-500 border border-slate-250 text-[10px] font-bold px-2.5 py-1 rounded-lg select-none shadow-3xs flex items-center gap-1">
@@ -1359,7 +1359,7 @@ export default function MatchesList({
                                 {otherPoints !== null && (
                                   <span
                                     className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-sm border ${
-                                      otherPoints.points === 3
+                                      otherPoints.points === 5
                                         ? 'text-emerald-700 bg-emerald-100 border-emerald-200'
                                         : otherPoints.points > 0
                                         ? 'text-blue-700 bg-blue-50 border-blue-200'

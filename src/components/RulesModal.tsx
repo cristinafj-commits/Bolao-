@@ -44,7 +44,7 @@ export default function RulesModal({ isOpen, onClose }: RulesModalProps) {
             {/* Rule 1 */}
             <div className="flex gap-4 items-start p-3 bg-slate-50 rounded-xl border border-slate-200 text-left">
               <div className="p-2 bg-emerald-100 rounded-lg text-emerald-800 font-mono font-bold text-sm shrink-0 min-w-12 text-center border border-emerald-250">
-                +3 pts
+                +5 pts
               </div>
               <div>
                 <h4 className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
@@ -52,23 +52,55 @@ export default function RulesModal({ isOpen, onClose }: RulesModalProps) {
                   Placar Exato
                 </h4>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Você acertou exatamente os gols de cada time. <span className="text-slate-600 font-medium">(Ex: Palpite 2x1, Final 2x1)</span>.
+                  Você acertou exatamente o placar do jogo. Soma <strong className="text-emerald-700">3 pontos</strong> do placar exato, <strong className="text-emerald-700">1 ponto</strong> de gols do vencedor e <strong className="text-emerald-700">1 ponto</strong> de gols do perdedor. Não acumula o ponto de resultado.
                 </p>
               </div>
             </div>
 
             {/* Rule 2 */}
             <div className="flex gap-4 items-start p-3 bg-slate-50 rounded-xl border border-slate-200 text-left">
-              <div className="p-2 bg-blue-105 rounded-lg text-blue-800 font-mono font-bold text-sm shrink-0 min-w-12 text-center border border-blue-200">
+              <div className="p-2 bg-blue-100 rounded-lg text-blue-800 font-mono font-bold text-sm shrink-0 min-w-12 text-center border border-blue-200">
                 +1 pt
               </div>
               <div>
                 <h4 className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
                   <Award className="w-4 h-4 text-blue-600" />
-                  Acerto do Vencedor ou Empate
+                  Acerto do Resultado (Vitória/Empate)
                 </h4>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Você acertou quem ganhou ou se terminou empatado, embora não tenha acertado o placar exato. <span className="text-slate-600 font-medium">(Ex: Palpite 3x1, Final 1x0; ou Palpite 1x1, Final 2x2)</span>.
+                  Você acertou quem venceu ou se terminou empatado, mas errou o placar exato. <span className="text-slate-650 font-medium font-mono font-bold">(Base: 1 ponto)</span>.
+                </p>
+              </div>
+            </div>
+
+            {/* Rule 3 */}
+            <div className="flex gap-4 items-start p-3 bg-slate-50 rounded-xl border border-slate-200 text-left">
+              <div className="p-2 bg-teal-100 rounded-lg text-teal-800 font-mono font-bold text-sm shrink-0 min-w-12 text-center border border-teal-200">
+                +1 pt
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+                  <CheckCircle className="w-4 h-4 text-teal-600" />
+                  Gols do Vencedor
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Você acertou a quantidade exata de gols feitos pelo vencedor da partida. <strong className="text-teal-700">Acumula (+1)</strong> se você também acertou o resultado.
+                </p>
+              </div>
+            </div>
+
+            {/* Rule 4 */}
+            <div className="flex gap-4 items-start p-3 bg-slate-50 rounded-xl border border-slate-200 text-left">
+              <div className="p-2 bg-indigo-100 rounded-lg text-indigo-800 font-mono font-bold text-sm shrink-0 min-w-12 text-center border border-indigo-200">
+                +1 pt
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+                  <CheckCircle className="w-4 h-4 text-indigo-600" />
+                  Gols do Perdedor
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Você acertou a quantidade exata de gols feitos pelo perdedor da partida. <strong className="text-indigo-700">Acumula (+1)</strong> se você também acertou o resultado.
                 </p>
               </div>
             </div>
@@ -78,8 +110,8 @@ export default function RulesModal({ isOpen, onClose }: RulesModalProps) {
           <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100/80 space-y-2 text-left">
             <h5 className="text-xs font-bold uppercase tracking-wider text-amber-800">Critérios de Desempate:</h5>
             <ol className="list-decimal pl-4 text-xs text-slate-600 space-y-1.5">
-              <li>Maior número de palpites com <strong className="text-slate-900">Placar Exato (+3)</strong>.</li>
-              <li>Maior número de palpites com <strong className="text-slate-900">Outros Acertos (+1)</strong>.</li>
+              <li>Maior número de palpites com <strong className="text-slate-900">Placar Exato (+5 pontos)</strong>.</li>
+              <li>Maior número de palpites com <strong className="text-slate-900">Outros Acertos de Resultado (+1 a +3 pontos)</strong>.</li>
               <li>Ordem alfabética do participante.</li>
             </ol>
           </div>
