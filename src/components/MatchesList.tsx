@@ -286,14 +286,47 @@ export default function MatchesList({
   // Auto-scroll selected date to the center of the list
   useEffect(() => {
     if (!selectedDate) return;
-    const timer = setTimeout(() => {
+
+    const scrollSelectedIntoView = (behavior: ScrollBehavior = 'smooth') => {
       const sanitizedId = `date-chip-${selectedDate.replace(' ', '-')}`;
       const element = document.getElementById(sanitizedId);
       if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        element.scrollIntoView({ behavior, block: 'nearest', inline: 'center' });
       }
-    }, 120);
-    return () => clearTimeout(timer);
+    };
+
+    // 1. Initial/selectedDate change scroll attempts
+    const timer1 = setTimeout(() => scrollSelectedIntoView('smooth'), 120);
+    const timer2 = setTimeout(() => scrollSelectedIntoView('smooth'), 300);
+
+    // 2. IntersectionObserver to detect when the date-scroll container becomes visible on screen (e.g. mobile tab changes)
+    const container = document.getElementById('dates-scroll-row');
+    let observer: IntersectionObserver | null = null;
+
+    if (container && typeof IntersectionObserver !== 'undefined') {
+      observer = new IntersectionObserver((entries) => {
+        const isVisible = entries.some(entry => entry.isIntersecting);
+        if (isVisible) {
+          // Perform instant centering scroll so it is centered the moment it appears, then support a smooth center verification
+          scrollSelectedIntoView('auto');
+          const t1 = setTimeout(() => scrollSelectedIntoView('smooth'), 50);
+          const t2 = setTimeout(() => scrollSelectedIntoView('smooth'), 200);
+          return () => {
+            clearTimeout(t1);
+            clearTimeout(t2);
+          };
+        }
+      }, { threshold: 0.1 });
+      observer.observe(container);
+    }
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      if (observer) {
+        observer.disconnect();
+      }
+    };
   }, [selectedDate]);
 
   // filter only for selected day matches or round matches + searchQuery text search
