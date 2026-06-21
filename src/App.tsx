@@ -240,7 +240,43 @@ export default function App() {
       if (snapshot.exists()) {
         const fbMatches = snapshot.data().lista;
         if (Array.isArray(fbMatches)) {
-          const mapped = fbMatches.map((m: any) => {
+          // Self-heal check: if there are any matches updated in initialMatches (e.g., have scores / finished or live)
+          // but are SCHEDULED or have null scores in the Firestore database, overwrite and write back.
+          let needsDatabaseWrite = false;
+          const updatedFirebaseMatches = fbMatches.map((m: any) => {
+            const localFallback = initialMatches.find((lm) => lm.id === m.id);
+            if (localFallback) {
+              const dbHomeScore = m.scoreA !== undefined ? m.scoreA : (m.homeScore !== undefined ? m.homeScore : null);
+              const dbAwayScore = m.scoreB !== undefined ? m.scoreB : (m.awayScore !== undefined ? m.awayScore : null);
+              const dbStatus = m.status !== undefined ? m.status : 'SCHEDULED';
+
+              const statusChanged = localFallback.status !== dbStatus;
+              const scoreChanged = (localFallback.homeScore !== null && localFallback.homeScore !== dbHomeScore) || 
+                                   (localFallback.awayScore !== null && localFallback.awayScore !== dbAwayScore);
+
+              if (statusChanged || scoreChanged) {
+                needsDatabaseWrite = true;
+                return {
+                  ...m,
+                  scoreA: localFallback.homeScore,
+                  scoreB: localFallback.awayScore,
+                  status: localFallback.status,
+                  minute: localFallback.minute,
+                };
+              }
+            }
+            return m;
+          });
+
+          if (needsDatabaseWrite) {
+            console.log("[Self-Healing] Resolving outdated game scores to cloud database...");
+            setDoc(doc(db, "config", "jogos"), { lista: updatedFirebaseMatches })
+              .catch((err) => console.error("[Self-Healing] Error auto-merging updated template scores:", err));
+          }
+
+          const targetListForMapping = needsDatabaseWrite ? updatedFirebaseMatches : fbMatches;
+
+          const mapped = targetListForMapping.map((m: any) => {
             const localFallback = initialMatches.find((lm) => lm.id === m.id);
             const rawScoreA = m.scoreA !== undefined ? m.scoreA : (m.homeScore !== undefined ? m.homeScore : null);
             const rawScoreB = m.scoreB !== undefined ? m.scoreB : (m.awayScore !== undefined ? m.awayScore : null);
