@@ -292,15 +292,30 @@ export default function App() {
             const rawScoreA = m.scoreA !== undefined ? m.scoreA : (m.homeScore !== undefined ? m.homeScore : null);
             const rawScoreB = m.scoreB !== undefined ? m.scoreB : (m.awayScore !== undefined ? m.awayScore : null);
 
+            const finalStatus = m.status !== undefined ? m.status : (localFallback?.status || 'SCHEDULED');
+            const isMatchDefinitive = finalStatus === 'FINISHED' || finalStatus === 'LIVE';
+
+            const homeScore = (rawScoreA !== null && rawScoreA !== undefined)
+              ? rawScoreA
+              : (isMatchDefinitive && localFallback?.homeScore !== null && localFallback?.homeScore !== undefined
+                 ? localFallback.homeScore
+                 : null);
+
+            const awayScore = (rawScoreB !== null && rawScoreB !== undefined)
+              ? rawScoreB
+              : (isMatchDefinitive && localFallback?.awayScore !== null && localFallback?.awayScore !== undefined
+                 ? localFallback.awayScore
+                 : null);
+
             return {
               id: m.id,
               homeTeam: m.teamA || m.homeTeam || localFallback?.homeTeam || 'Time A',
               awayTeam: m.teamB || m.awayTeam || localFallback?.awayTeam || 'Time B',
               homeFlag: m.homeFlag || localFallback?.homeFlag || '⚽',
               awayFlag: m.awayFlag || localFallback?.awayFlag || '⚽',
-              homeScore: rawScoreA !== undefined ? rawScoreA : localFallback?.homeScore,
-              awayScore: rawScoreB !== undefined ? rawScoreB : localFallback?.awayScore,
-              status: m.status !== undefined ? m.status : (localFallback?.status || 'SCHEDULED'),
+              homeScore,
+              awayScore,
+              status: finalStatus,
               minute: m.minute !== undefined ? m.minute : (localFallback?.minute || 0),
               group: m.group || localFallback?.group || 'Copa do Mundo',
               date: m.date || localFallback?.date || '',
@@ -308,6 +323,24 @@ export default function App() {
           });
           setMatches(mapped);
           setCloudStatus('synced');
+        } else {
+          // Document exists but does not contain a valid matches list list. Re-seed it.
+          const converted = initialMatches.map((m) => ({
+            id: m.id,
+            teamA: m.homeTeam,
+            teamB: m.awayTeam,
+            scoreA: m.homeScore,
+            scoreB: m.awayScore,
+            date: m.date,
+            status: m.status,
+            minute: m.minute,
+            group: m.group,
+            homeFlag: m.homeFlag,
+            awayFlag: m.awayFlag
+          }));
+          setDoc(doc(db, "config", "jogos"), { lista: converted })
+            .then(() => setCloudStatus('synced'))
+            .catch((err) => console.error("Error re-initializing invalid matches document:", err));
         }
       } else {
         // Document config/jogos does not exist yet. Initialize it with our local initialMatches
