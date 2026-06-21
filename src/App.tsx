@@ -259,13 +259,13 @@ export default function App() {
               const dbStatus = m.status !== undefined ? m.status : 'SCHEDULED';
 
               const isLocalFallbackDefinitive = localFallback.status === 'FINISHED' || localFallback.status === 'LIVE';
-              const isDbPending = dbStatus === 'SCHEDULED' || dbHomeScore === null || dbAwayScore === null;
 
-              const statusChanged = isLocalFallbackDefinitive && dbStatus === 'SCHEDULED';
-              const scoreChanged = isLocalFallbackDefinitive && isDbPending &&
+              const statusChanged = isLocalFallbackDefinitive && dbStatus !== localFallback.status;
+              const scoreChanged = isLocalFallbackDefinitive &&
                                    (localFallback.homeScore !== dbHomeScore || localFallback.awayScore !== dbAwayScore);
+              const minuteChanged = isLocalFallbackDefinitive && localFallback.status === 'LIVE' && localFallback.minute !== m.minute;
 
-              if (statusChanged || scoreChanged) {
+              if (statusChanged || scoreChanged || minuteChanged) {
                 needsDatabaseWrite = true;
                 return {
                   ...m,
