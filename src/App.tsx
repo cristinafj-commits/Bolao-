@@ -240,8 +240,9 @@ export default function App() {
       if (snapshot.exists()) {
         const fbMatches = snapshot.data().lista;
         if (Array.isArray(fbMatches)) {
-          // Self-heal check: if there are any matches updated in initialMatches (e.g., have scores / finished or live)
-          // but are SCHEDULED or have null scores in the Firestore database, overwrite and write back.
+          // Self-heal check: only update if our local template contains a definitive result (FINISHED / LIVE)
+          // and the database counterpart is still pending (SCHEDULED or null scores).
+          // This avoids reverting legitimate live/finished score updates back to SCHEDULED.
           let needsDatabaseWrite = false;
           const updatedFirebaseMatches = fbMatches.map((m: any) => {
             const localFallback = initialMatches.find((lm) => lm.id === m.id);
@@ -250,9 +251,12 @@ export default function App() {
               const dbAwayScore = m.scoreB !== undefined ? m.scoreB : (m.awayScore !== undefined ? m.awayScore : null);
               const dbStatus = m.status !== undefined ? m.status : 'SCHEDULED';
 
-              const statusChanged = localFallback.status !== dbStatus;
-              const scoreChanged = (localFallback.homeScore !== null && localFallback.homeScore !== dbHomeScore) || 
-                                   (localFallback.awayScore !== null && localFallback.awayScore !== dbAwayScore);
+              const isLocalFallbackDefinitive = localFallback.status === 'FINISHED' || localFallback.status === 'LIVE';
+              const isDbPending = dbStatus === 'SCHEDULED' || dbHomeScore === null || dbAwayScore === null;
+
+              const statusChanged = isLocalFallbackDefinitive && dbStatus === 'SCHEDULED';
+              const scoreChanged = isLocalFallbackDefinitive && isDbPending &&
+                                   (localFallback.homeScore !== dbHomeScore || localFallback.awayScore !== dbAwayScore);
 
               if (statusChanged || scoreChanged) {
                 needsDatabaseWrite = true;
