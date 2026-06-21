@@ -956,11 +956,7 @@ export default function MatchesList({
                             <span>{m.awayScore !== null ? m.awayScore : '-'}</span>
                           </div>
                         )}
-                        {isLive && !isAdminMode && (
-                          <span className="text-[8px] text-rose-600/85 font-black uppercase tracking-wider text-center select-none max-w-[100px] leading-tight mt-0.5 animate-pulse">
-                            Ajustes via Admin (Código: 2026)
-                          </span>
-                        )}
+
                       </div>
                     )}
                   </div>
