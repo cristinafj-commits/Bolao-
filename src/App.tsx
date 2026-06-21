@@ -67,15 +67,19 @@ export default function App() {
     matchCount?: number;
   } | null>(null);
 
-  const [hasDoneInitialSync, setHasDoneInitialSync] = useState<boolean>(false);
+  const hasDoneInitialSync = React.useRef<boolean>(false);
+  const matchesRef = React.useRef(matches);
+  useEffect(() => {
+    matchesRef.current = matches;
+  }, [matches]);
 
   // Silent background sync of results once on startup when matches are loaded
   useEffect(() => {
-    if (hasDoneInitialSync || !matches || matches.length === 0 || cloudStatus !== 'synced') {
+    if (hasDoneInitialSync.current || !matches || matches.length === 0 || cloudStatus !== 'synced') {
       return;
     }
     
-    setHasDoneInitialSync(true); // run only once
+    hasDoneInitialSync.current = true; // run only once
 
     const runSilentUpdate = async () => {
       try {
@@ -87,7 +91,10 @@ export default function App() {
         if (!Array.isArray(remoteMatches) || remoteMatches.length === 0) return;
 
         let hasChanges = false;
-        const updatedList = matches.map((m) => {
+        const currentMatches = matchesRef.current;
+        if (!currentMatches || currentMatches.length === 0) return;
+
+        const updatedList = currentMatches.map((m) => {
           const matchedRemote = matchExistingByTeamNames(m, remoteMatches);
           if (matchedRemote) {
             const remoteHomeScore = matchedRemote.score?.fullTime?.home;
@@ -148,7 +155,7 @@ export default function App() {
     }, 2000);
 
     return () => clearTimeout(timeoutId);
-  }, [matches, hasDoneInitialSync, cloudStatus]);
+  }, [cloudStatus]);
 
   // Mutable reference for fresh score updates callback
   const syncRef = React.useRef<() => any>(() => {});
@@ -1071,9 +1078,11 @@ export default function App() {
       } else {
         // Mode is 'update' - search and update scores of existing matches
         let updatedCount = 0;
+        let matchedCount = 0;
         const updatedList = matches.map((m) => {
           const matchedRemote = matchExistingByTeamNames(m, remoteMatches);
           if (matchedRemote) {
+            matchedCount++;
             const remoteHomeScore = matchedRemote.score?.fullTime?.home;
             const remoteAwayScore = matchedRemote.score?.fullTime?.away;
             
@@ -1084,20 +1093,37 @@ export default function App() {
               mappedStatus = 'LIVE';
             }
 
-            updatedCount++;
-            return {
-              ...m,
-              homeScore: remoteHomeScore !== undefined && remoteHomeScore !== null ? remoteHomeScore : m.homeScore,
-              awayScore: remoteAwayScore !== undefined && remoteAwayScore !== null ? remoteAwayScore : m.awayScore,
-              status: mappedStatus,
-              minute: matchedRemote.status === 'FINISHED' ? 90 : (matchedRemote.status === 'IN_PLAY' ? 45 : m.minute),
-            };
+            const targetMinute = matchedRemote.status === 'FINISHED' ? 90 : (matchedRemote.status === 'IN_PLAY' ? 45 : m.minute);
+            const homeScoreValue = remoteHomeScore !== undefined && remoteHomeScore !== null ? remoteHomeScore : m.homeScore;
+            const awayScoreValue = remoteAwayScore !== undefined && remoteAwayScore !== null ? remoteAwayScore : m.awayScore;
+
+            const homeScoreChanged = homeScoreValue !== m.homeScore;
+            const awayScoreChanged = awayScoreValue !== m.awayScore;
+            const statusChanged = mappedStatus !== m.status;
+            const minuteChanged = targetMinute !== m.minute;
+
+            if (homeScoreChanged || awayScoreChanged || statusChanged || minuteChanged) {
+              updatedCount++;
+              return {
+                ...m,
+                homeScore: homeScoreValue,
+                awayScore: awayScoreValue,
+                status: mappedStatus,
+                minute: targetMinute,
+              };
+            }
           }
           return m;
         });
 
-        if (updatedCount === 0) {
+        if (matchedCount === 0) {
           triggerToast(`⚠️ Nenhum jogo coincidente foi encontrado para atualizar os placares.`);
+          setIsSyncing(false);
+          return;
+        }
+
+        if (updatedCount === 0) {
+          triggerToast(`✅ Todos os placares já estão 100% atualizados na nuvem!`);
           setIsSyncing(false);
           return;
         }
@@ -1119,7 +1145,7 @@ export default function App() {
         }));
 
         await setDoc(doc(db, "config", "jogos"), { lista: converted });
-        triggerToast(`🔥 Atualizados placares de ${updatedCount} jogos com sucesso!`);
+        triggerToast(`🔥 Sincronizado: ${updatedCount} novo(s) placar(es) atualizado(s) no banco!`);
       }
     } catch (err: any) {
       console.error("Erro na busca automática:", err);
