@@ -158,7 +158,11 @@ async function syncScores() {
       console.log(`✅ Banco inicializado com sucesso com ${converted.length} jogos.`);
     } else {
       const val = snapshot.val();
-      const list = val.lista || [];
+      console.log("SNAPSHOT_VAL_DIRECT:", JSON.stringify(val));
+      let list = val.lista || [];
+      if (list && typeof list === 'object' && !Array.isArray(list)) {
+        list = Object.values(list);
+      }
       currentMatches = list.map((m: any) => ({
         id: m.id || '',
         teamA: m.teamA || '',
@@ -174,6 +178,8 @@ async function syncScores() {
       }));
       console.log(`✅ Foram encontrados ${currentMatches.length} jogos locais no Realtime Database.`);
     }
+
+    console.log("DEBUG_CURRENT_MATCHES:", JSON.stringify(currentMatches));
 
     // 2. Fetch latest scores from Football-Data.org API
     const leagueCode = 'WC'; // World Cup por padrão

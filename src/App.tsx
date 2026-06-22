@@ -73,9 +73,9 @@ export default function App() {
     matchesRef.current = matches;
   }, [matches]);
 
-  // Silent background sync of results once on startup when matches are loaded
+  // Silent background sync of results once on startup when matches are loaded (admin only)
   useEffect(() => {
-    if (hasDoneInitialSync.current || !matches || matches.length === 0 || cloudStatus !== 'synced') {
+    if (hasDoneInitialSync.current || !matches || matches.length === 0 || cloudStatus !== 'synced' || !isAdminMode) {
       return;
     }
     
@@ -84,7 +84,12 @@ export default function App() {
     const runSilentUpdate = async () => {
       try {
         console.log("[Auto-Sync-Mount] Iniciando verificação de placares silenciosa...");
-        const response = await fetch(`/api/football-data/matches?leagueCode=WC&season=2026`);
+        const adminPasscode = localStorage.getItem('bolao_admin_passcode') || '2026';
+        const response = await fetch(`/api/football-data/matches?leagueCode=WC&season=2026`, {
+          headers: {
+            'X-Admin-Passcode': adminPasscode
+          }
+        });
         if (!response.ok) return;
         const data = await response.json();
         const remoteMatches = data.matches;
@@ -155,7 +160,7 @@ export default function App() {
     }, 2000);
 
     return () => clearTimeout(timeoutId);
-  }, [cloudStatus]);
+  }, [cloudStatus, isAdminMode]);
 
   // Mutable reference for fresh score updates callback
   const syncRef = React.useRef<() => any>(() => {});
@@ -245,7 +250,10 @@ export default function App() {
   useEffect(() => {
     const unsubscribeMatches = onSnapshot(doc(db, "config", "jogos"), (snapshot) => {
       if (snapshot.exists()) {
-        const fbMatches = snapshot.data().lista;
+        let fbMatches = snapshot.data().lista;
+        if (fbMatches && typeof fbMatches === 'object' && !Array.isArray(fbMatches)) {
+          fbMatches = Object.values(fbMatches);
+        }
         if (Array.isArray(fbMatches)) {
           const mapped = fbMatches.map((m: any) => {
             const localFallback = initialMatches.find((lm) => lm.id === m.id);
@@ -996,7 +1004,12 @@ export default function App() {
     triggerToast(`⏳ Conectando à API Football-Data (${selectedLeague})...`);
 
     try {
-      const response = await fetch(`/api/football-data/matches?leagueCode=${selectedLeague}&season=${selectedSeason}`);
+      const adminPasscode = localStorage.getItem('bolao_admin_passcode') || '2026';
+      const response = await fetch(`/api/football-data/matches?leagueCode=${selectedLeague}&season=${selectedSeason}`, {
+        headers: {
+          'X-Admin-Passcode': adminPasscode
+        }
+      });
       
       let data: any = null;
       const contentType = response.headers.get("content-type");
@@ -1236,7 +1249,7 @@ export default function App() {
     triggerToast('🎉 Backup importado com sucesso!');
   };
 
-  const handleSaveNewPasscode = () => {
+  const handleSaveNewPasscode = async () => {
     const trimmed = tempPasscode.trim();
     if (!trimmed) {
       triggerToast('⚠️ Digite um código de acesso válido.');
@@ -1247,7 +1260,13 @@ export default function App() {
       return;
     }
     localStorage.setItem('bolao_admin_passcode', trimmed);
-    triggerToast('🔐 Novo código de acesso configurado com sucesso!');
+    try {
+      await setDoc(doc(db, "config", "seguranca"), { passcode: trimmed });
+      triggerToast('🔐 Novo código de acesso configurado com sucesso na nuvem!');
+    } catch (err) {
+      console.error("Erro ao salvar passcode na nuvem:", err);
+      triggerToast('🔐 Novo código de acesso configurado localmente.');
+    }
     setTempPasscode('');
   };
 

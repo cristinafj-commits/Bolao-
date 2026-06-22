@@ -197,7 +197,10 @@ async function performServerSync(remoteMatches?: any[]) {
       currentMatches = converted as LocalMatch[];
     } else {
       const val = snapshot.val();
-      const list = val.lista || [];
+      let list = val.lista || [];
+      if (list && typeof list === 'object' && !Array.isArray(list)) {
+        list = Object.values(list);
+      }
       currentMatches = list.map((m: any) => ({
         id: m.id || '',
         teamA: m.teamA || '',
@@ -276,6 +279,27 @@ async function startServer() {
   // API Route: Match integration with Football-Data.org
   app.get("/api/football-data/matches", async (req, res) => {
     try {
+      const userPasscode = req.headers['x-admin-passcode'];
+      let correctPasscode = '2026';
+      try {
+        const passcodeSnapshot = await get(ref(firebaseDb, "config/seguranca"));
+        if (passcodeSnapshot.exists()) {
+          const segData = passcodeSnapshot.val();
+          if (segData && segData.passcode) {
+            correctPasscode = segData.passcode.toString().trim();
+          }
+        }
+      } catch (e: any) {
+        console.error("Failed to read passcode from RTDB:", e.message || e);
+      }
+
+      if (!userPasscode || userPasscode.toString().trim() !== correctPasscode) {
+        return res.status(403).json({
+          error: "FORBIDDEN",
+          message: "Acesso restrito apenas ao administrador do bolão."
+        });
+      }
+
       const apiKey = process.env.FOOTBALL_DATA_API_KEY;
       if (!apiKey) {
         return res.status(400).json({ 
