@@ -867,17 +867,28 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
               {/* List of graded games */}
               <div className="p-3 sm:p-4 overflow-y-auto space-y-3 bg-slate-100/60 flex-1 text-left">
                 {(() => {
-                  // Sort games: live and finished first, scheduled after
+                  // Parse custom strings like "12 Jun, 15:00" to secure numeric timestamps for chronologic sorting
+                  const parseDateForSorting = (dateStrByMatch: string) => {
+                    if (!dateStrByMatch) return 0;
+                    const [dayMonth, time] = dateStrByMatch.split(',');
+                    const [dayStr, monthStr] = (dayMonth || '').trim().split(' ');
+                    const [hourStr, minStr] = (time || '00:00').trim().split(':');
+
+                    const day = parseInt(dayStr, 10) || 1;
+                    const months: Record<string, number> = {
+                      'Jan': 0, 'Fev': 1, 'Mar': 2, 'Abr': 3, 'Mai': 4, 'Jun': 5,
+                      'Jul': 6, 'Ago': 7, 'Set': 8, 'Out': 9, 'Nov': 10, 'Dez': 11
+                    };
+                    const month = months[monthStr || 'Jun'] || 5;
+                    const hour = parseInt(hourStr, 10) || 0;
+                    const min = parseInt(minStr, 10) || 0;
+
+                    return new Date(2026, month, day, hour, min).getTime();
+                  };
+
+                  // Sort games chronologically by date and time
                   const sortedMatches = [...matches].sort((a, b) => {
-                    const aPlayed = a.homeScore !== null && a.awayScore !== null;
-                    const bPlayed = b.homeScore !== null && b.awayScore !== null;
-                    
-                    if (a.status === 'LIVE' && b.status !== 'LIVE') return -1;
-                    if (b.status === 'LIVE' && a.status !== 'LIVE') return 1;
-                    if (aPlayed && !bPlayed) return -1;
-                    if (!aPlayed && bPlayed) return 1;
-                    
-                    return a.id.localeCompare(b.id);
+                    return parseDateForSorting(a.date) - parseDateForSorting(b.date);
                   });
 
                   if (sortedMatches.length === 0) {
