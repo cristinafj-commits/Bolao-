@@ -247,61 +247,15 @@ export default function App() {
       if (snapshot.exists()) {
         const fbMatches = snapshot.data().lista;
         if (Array.isArray(fbMatches)) {
-          // Self-heal check: only update if our local template contains a definitive result (FINISHED / LIVE)
-          // and the database counterpart is still pending (SCHEDULED or null scores).
-          // This avoids reverting legitimate live/finished score updates back to SCHEDULED.
-          let needsDatabaseWrite = false;
-          const updatedFirebaseMatches = fbMatches.map((m: any) => {
-            const localFallback = initialMatches.find((lm) => lm.id === m.id);
-            if (localFallback) {
-              const dbHomeScore = m.scoreA !== undefined ? m.scoreA : (m.homeScore !== undefined ? m.homeScore : null);
-              const dbAwayScore = m.scoreB !== undefined ? m.scoreB : (m.awayScore !== undefined ? m.awayScore : null);
-              const dbStatus = m.status !== undefined ? m.status : 'SCHEDULED';
-
-              const isLocalFallbackDefinitive = localFallback.status === 'FINISHED' || localFallback.status === 'LIVE';
-              const isDbPending = dbStatus === 'SCHEDULED' && dbHomeScore === null && dbAwayScore === null;
-
-              if (isLocalFallbackDefinitive && isDbPending) {
-                needsDatabaseWrite = true;
-                return {
-                  ...m,
-                  scoreA: localFallback.homeScore,
-                  scoreB: localFallback.awayScore,
-                  status: localFallback.status,
-                  minute: localFallback.minute,
-                };
-              }
-            }
-            return m;
-          });
-
-          if (needsDatabaseWrite) {
-            console.log("[Self-Healing] Resolving outdated game scores to cloud database...");
-            setDoc(doc(db, "config", "jogos"), { lista: updatedFirebaseMatches })
-              .catch((err) => console.error("[Self-Healing] Error auto-merging updated template scores:", err));
-          }
-
-          const targetListForMapping = needsDatabaseWrite ? updatedFirebaseMatches : fbMatches;
-
-          const mapped = targetListForMapping.map((m: any) => {
+          const mapped = fbMatches.map((m: any) => {
             const localFallback = initialMatches.find((lm) => lm.id === m.id);
             const rawScoreA = m.scoreA !== undefined ? m.scoreA : (m.homeScore !== undefined ? m.homeScore : null);
             const rawScoreB = m.scoreB !== undefined ? m.scoreB : (m.awayScore !== undefined ? m.awayScore : null);
 
+            const homeScore = (rawScoreA !== null && rawScoreA !== undefined) ? Number(rawScoreA) : null;
+            const awayScore = (rawScoreB !== null && rawScoreB !== undefined) ? Number(rawScoreB) : null;
+
             const finalStatus = m.status !== undefined ? m.status : (localFallback?.status || 'SCHEDULED');
-            const isMatchDefinitive = finalStatus === 'FINISHED' || finalStatus === 'LIVE';
-
-            const homeScore = (rawScoreA !== null && rawScoreA !== undefined)
-              ? rawScoreA
-              : (isMatchDefinitive && localFallback?.homeScore !== null && localFallback?.homeScore !== undefined
-                 ? localFallback.homeScore
-                 : null);
-
-            const awayScore = (rawScoreB !== null && rawScoreB !== undefined)
-              ? rawScoreB
-              : (isMatchDefinitive && localFallback?.awayScore !== null && localFallback?.awayScore !== undefined
-                 ? localFallback.awayScore
-                 : null);
 
             return {
               id: m.id,
@@ -1799,30 +1753,45 @@ export default function App() {
             id="main-central-panel"
           >
             <div className="space-y-4" id="view-tab-jogos">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center bg-slate-50 border border-slate-100 p-4 rounded-2xl flex-wrap gap-3">
                 <div>
-                  <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                    <Star className="w-4 h-4 text-amber-500" />
+                  <h2 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2 select-none" id="heading-partidas">
+                    <Star className="w-4 h-4 text-emerald-500 fill-emerald-400 shrink-0" />
                     Partidas Relacionadas
                   </h2>
-                  <p className="text-xs text-slate-500">Insira palpites ou consulte pontuações provisórias</p>
+                  <p className="text-[11px] text-slate-500">Consulte palpites e veja os resultados reais atualizados pela API</p>
                 </div>
 
-                {isAdminMode && (
-                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                  {isAdminMode && (
+                    <button
+                      onClick={() => handleAutoSyncScores('update')}
+                      disabled={isSyncing}
+                      className="cursor-pointer font-extrabold text-[10px] uppercase bg-emerald-600 hover:bg-emerald-550 active:scale-95 text-white py-2 px-3.5 rounded-xl transition duration-200 shadow-xs flex items-center gap-1.5 select-none disabled:bg-emerald-300 disabled:pointer-events-none"
+                      title="Consultar resultados reais dos jogos direto da API oficial"
+                      id="public-api-sync-btn"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
+                      <span>Sincronizar API</span>
+                    </button>
+                  )}
+
+                  {isAdminMode && (
                     <button
                       onClick={handleResetMatches}
-                      className="text-[10px] bg-red-100 hover:bg-red-200 text-red-700 font-bold px-2 py-1 rounded-sm border border-red-250 uppercase tracking-wide cursor-pointer text-center select-none"
+                      className="text-[10px] bg-red-100 hover:bg-red-200 text-red-700 font-extrabold px-3 py-2 rounded-xl border border-red-250 uppercase tracking-wide cursor-pointer text-center select-none active:scale-95 transition-all"
                       title="Apagar placares reais e redefinir jogos como Agendados"
                       id="reset-scores-btn"
                     >
                       Resetar Resultados
                     </button>
-                    <span className="text-[10px] bg-amber-500/10 text-amber-600 font-bold px-2.5 py-1 rounded-sm border border-amber-500/20 uppercase tracking-widest animate-pulse">
+                  )}
+                  {isAdminMode && (
+                    <span className="text-[10px] bg-amber-500/10 text-amber-600 font-bold px-2.5 py-2 rounded-xl border border-amber-500/20 uppercase tracking-widest animate-pulse">
                       Modo Edit Ativo
                     </span>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
 
