@@ -770,36 +770,27 @@ export default function ParticipantSelector({
                     Etapa 2: Validar e Bloquear (Opcional)
                   </span>
                   <span className="text-[11px] text-slate-500 mt-0.5 leading-relaxed block text-left">
-                    {unfilledCount > 0 ? (
-                      <span className="text-rose-600 font-extrabold">
-                        ⚠️ Bloqueado: Você ainda tem {unfilledCount} jogo(s) sem palpitar. Complete todos os palpites para liberar o botão!
+                    Quando tiver finalizado o preenchimento dos seus palpites, você pode trancá-los para maior segurança. 
+                    {unfilledCount > 0 && (
+                      <span className="text-amber-600 font-medium block mt-0.5">
+                        ⚠️ Você ainda possui {unfilledCount} jogo(s) sem palpites. Se trancar agora, não poderá editá-los depois.
                       </span>
-                    ) : (
-                      <>
-                        Quando tiver finalizado o preenchimento de todos os seus palpites, você pode trancá-los para maior segurança. 
-                        <strong className="text-amber-850 font-extrabold block mt-0.5">⚠️ Atenção: Após bloquear, não poderá mais fazer edições!</strong>
-                      </>
                     )}
+                    <strong className="text-amber-850 font-extrabold block mt-0.5">⚠️ Atenção: Após bloquear, não poderá mais fazer edições!</strong>
                   </span>
                 </div>
               </div>
 
               <button
                 onClick={(e) => {
-                  if (unfilledCount > 0) return;
                   e.stopPropagation();
                   onLockGuesses();
                 }}
-                disabled={unfilledCount > 0}
-                className={`w-full py-2.5 font-extrabold text-xs rounded-xl transition shadow-xs flex items-center justify-center gap-1.5 shrink-0 uppercase tracking-wider mt-1 ${
-                  unfilledCount > 0
-                    ? 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed'
-                    : 'bg-amber-600 hover:bg-amber-500 active:scale-95 text-white cursor-pointer'
-                }`}
+                className="w-full py-2.5 font-extrabold text-xs rounded-xl transition shadow-xs flex items-center justify-center gap-1.5 shrink-0 uppercase tracking-wider mt-1 bg-amber-600 hover:bg-amber-500 active:scale-95 text-white cursor-pointer"
                 id="btn-lock-all-guesses"
               >
                 <Lock className="w-3.5 h-3.5 shrink-0" />
-                <span>{unfilledCount > 0 ? `Palpites Incompletos (Faltam ${unfilledCount})` : 'Salvar & Bloquear de uma vez'}</span>
+                <span>Salvar & Bloquear de uma vez</span>
               </button>
             </div>
           )}

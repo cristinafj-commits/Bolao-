@@ -794,16 +794,15 @@ export default function App() {
         g.homeScoreGuess !== undefined
     );
 
-    // Block locking if any matches remain unpredicted
     const unfilledCount = currentMatches.length - activeGuesses.length;
+    const phaseLabel = tourneyPhase === 'fase2' ? 'Segunda Fase (Mata-Mata)' : 'Primeira Fase (Grupos)';
+
+    let confirmMsg = `⚠️ ATENÇÃO: Deseja realmente confirmar e BLOQUEAR todos os seus palpites da ${phaseLabel}? \n\nUma vez bloqueados, você NÃO poderá fazer quaisquer edições subsequentes nesta fase.`;
     if (unfilledCount > 0) {
-      alert(`⚠️ Confirmação Recusada: Você ainda não preencheu todos os jogos desta fase! Faltam ${unfilledCount} palpites de um total de ${currentMatches.length}.\n\nPor favor, salve palpites para todos os jogos para liberar o bloqueio de rascunhos.`);
-      triggerToast(`⚠️ Faltam palpites para ${unfilledCount} jogo(s).`);
-      return;
+      confirmMsg = `⚠️ ATENÇÃO: Você possui ${unfilledCount} jogo(s) sem palpites cadastrados para esta fase.\n\nDeseja realmente confirmar e BLOQUEAR seus palpites da ${phaseLabel} com as informações atuais? Você não poderá preencher ou editar palpites nesta fase após o bloqueio.`;
     }
 
-    const phaseLabel = tourneyPhase === 'fase2' ? 'Segunda Fase (Mata-Mata)' : 'Primeira Fase (Grupos)';
-    if (!window.confirm(`⚠️ ATENÇÃO: Deseja realmente confirmar e BLOQUEAR todos os seus palpites da ${phaseLabel} de uma vez? \n\nUma vez bloqueados, você NÃO poderá fazer quaisquer edições subsequentes nesta fase.`)) {
+    if (!window.confirm(confirmMsg)) {
       return;
     }
 

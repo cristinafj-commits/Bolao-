@@ -739,15 +739,13 @@ export default function MatchesList({
               <span className="font-extrabold text-xs uppercase tracking-wider block">
                 {isActiveParticipantLocked 
                   ? `🔒 Palpites da ${tourneyPhase === 'fase2' ? 'Segunda Fase' : 'Primeira Fase'} Consolidados` 
-                  : unfilledMatchesCount > 0
-                    ? `📝 Palpites em Modo Rascunho (${matches.length - unfilledMatchesCount}/${matches.length} Preenchidos)`
-                    : `🎉 Pronto para Trancar a ${tourneyPhase === 'fase2' ? 'Segunda Fase' : 'Primeira Fase'}!`}
+                  : `📝 Palpites em Modo Rascunho (${matches.length - unfilledMatchesCount}/${matches.length} Preenchidos)`}
               </span>
               <span className="text-xs text-slate-600 mt-1 block leading-relaxed">
                 {isActiveParticipantLocked
-                  ? `Seus palpites para todos os jogos da ${tourneyPhase === 'fase2' ? 'Segunda Fase (Mata-Mata)' : 'Primeira Fase (Grupos)'} estão validados e trancados definitivamente na nuvem. Boa sorte!`
+                  ? `Seus palpites para a ${tourneyPhase === 'fase2' ? 'Segunda Fase (Mata-Mata)' : 'Primeira Fase (Grupos)'} estão validados e trancados definitivamente na nuvem. Boa sorte!`
                   : unfilledMatchesCount > 0
-                    ? `Faltam palpites para ${unfilledMatchesCount} jogo(s) de um total de ${matches.length} da ${tourneyPhase === 'fase2' ? 'Segunda Fase' : 'Primeira Fase'}. Você precisa cadastrar palpites para todos os jogos da fase para liberar a confirmação.`
+                    ? `Você tem palpites salvos em modo rascunho. Se desejar, já pode oficializar e trancar todos os seus palpites atuais para esta fase (mesmo restando ${unfilledMatchesCount} jogo(s) sem palpites).`
                     : `Parabéns! Todos os ${matches.length} jogos da ${tourneyPhase === 'fase2' ? 'Segunda Fase (Mata-Mata)' : 'Primeira Fase (Grupos)'} foram respondidos. Você já pode oficializar e trancar seus palpites para esta fase.`}
               </span>
             </div>
@@ -776,9 +774,9 @@ export default function MatchesList({
                     e.stopPropagation();
                     onLockGuesses();
                   }}
-                  disabled={unfilledMatchesCount > 0 || dirtyMatchesInfo.length > 0}
+                  disabled={dirtyMatchesInfo.length > 0}
                   className={`w-full sm:w-auto py-2.5 px-5 font-extrabold text-xs rounded-xl cursor-pointer transition-all shadow-xs flex items-center justify-center gap-1.5 uppercase tracking-wider ${
-                    (unfilledMatchesCount > 0 || dirtyMatchesInfo.length > 0)
+                    dirtyMatchesInfo.length > 0
                       ? 'bg-slate-200 border border-slate-300 text-slate-400 cursor-not-allowed'
                       : 'bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white'
                   }`}
@@ -789,9 +787,7 @@ export default function MatchesList({
                   <span>
                     {dirtyMatchesInfo.length > 0
                       ? 'Grave alterações para liberar'
-                      : unfilledMatchesCount > 0
-                        ? 'Grave todos para liberar'
-                        : 'Confirmar / Trancar'}
+                      : 'Confirmar / Trancar'}
                   </span>
                 </button>
               )}
