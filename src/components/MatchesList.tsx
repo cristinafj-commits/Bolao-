@@ -1596,7 +1596,7 @@ export default function MatchesList({
                                   {otherGuess.homeScoreGuess}x{otherGuess.awayScoreGuess}
                                   {otherGuess.homeScoreGuess === otherGuess.awayScoreGuess && otherGuess.penaltyWinnerGuess && (
                                     <span className="text-[10px] text-amber-700 font-extrabold ml-1">
-                                      (P: {otherGuess.penaltyWinnerGuess === 'home' ? 'Casa' : 'Fora'})
+                                      (P: {otherGuess.penaltyWinnerGuess === 'home' ? m.homeTeam : m.awayTeam})
                                     </span>
                                   )}
                                 </span>

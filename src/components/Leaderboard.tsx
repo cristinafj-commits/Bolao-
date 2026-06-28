@@ -218,9 +218,12 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
     }
   };
 
-  // Count servants vs interns to calculate total prize money dynamically
-  const countServidores = participants.filter((p) => p.role !== 'estagiario').length;
-  const countEstagiarios = participants.filter((p) => p.role === 'estagiario').length;
+  // Count servants vs interns to calculate total prize money dynamically (only counting those who registered guesses)
+  const participantsWithGuesses = participants.filter((p) =>
+    guesses.some((g) => g.participantId === p.id)
+  );
+  const countServidores = participantsWithGuesses.filter((p) => p.role !== 'estagiario').length;
+  const countEstagiarios = participantsWithGuesses.filter((p) => p.role === 'estagiario').length;
   const totalPrizeMoney = tourneyPhase === 'fase2'
     ? (countServidores * 30) + (countEstagiarios * 10)
     : (countServidores * 50) + (countEstagiarios * 20);
@@ -736,7 +739,7 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
                 <span className="text-3xl font-black text-emerald-700 tracking-tight leading-none">
                   R$ {totalPrizeMoney},00
                 </span>
-                <span className="text-[11px] text-slate-500 font-black">arrecadados s/ taxas</span>
+                <span className="text-[11px] text-slate-500 font-black" title="Calculado apenas para quem já cadastrou palpites">arrecadados (c/ palpites)</span>
               </div>
 
               {/* Dynamic counters for participants role density */}
