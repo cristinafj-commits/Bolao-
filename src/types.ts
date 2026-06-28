@@ -25,6 +25,7 @@ export interface Participant {
   isGoogleUser?: boolean;
   locked?: boolean;
   lockedFase2?: boolean;
+  lockedMatches?: string[];
   role?: 'servidor' | 'estagiario';
 }
 

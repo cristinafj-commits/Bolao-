@@ -47,6 +47,8 @@ interface MatchesListProps {
     penaltyWinner?: 'home' | 'away' | null
   ) => void;
   onLockGuesses?: () => void;
+  onLockIndividualGuesses?: (matchIds: string[]) => Promise<void>;
+  onUnlockIndividualGuesses?: (matchIds: string[]) => Promise<void>;
   tourneyPhase?: 'grupo' | 'fase2';
 }
 
@@ -60,6 +62,8 @@ export default function MatchesList({
   isAdminMode,
   onUpdateActualScore,
   onLockGuesses,
+  onLockIndividualGuesses,
+  onUnlockIndividualGuesses,
   tourneyPhase = 'grupo',
 }: MatchesListProps) {
   const [expandedGuesses, setExpandedGuesses] = useState<Record<string, boolean>>({});
@@ -872,6 +876,49 @@ export default function MatchesList({
         </div>
       )}
 
+      {/* Banner de Trancamento por Dia */}
+      {viewType === 'day' && activeParticipant && !isActiveParticipantLocked && !isAdminMode && onLockIndividualGuesses && (() => {
+        const matchesOnDay = filteredMatches;
+        const guessesOnDay = guesses.filter(
+          (g) => g.participantId === activeParticipantId && matchesOnDay.some((m) => m.id === g.matchId)
+        );
+        const lockedMatchIds = activeParticipant.lockedMatches || [];
+        const untrackedGuessesOnDay = guessesOnDay.filter((g) => !lockedMatchIds.includes(g.matchId));
+
+        if (untrackedGuessesOnDay.length > 0) {
+          return (
+            <div className="bg-amber-50/60 border border-amber-250 rounded-xl p-4 mb-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs" id="day-lock-banner">
+              <div className="flex items-start gap-2.5 text-left">
+                <div className="p-2 rounded-lg bg-amber-100/80 border border-amber-300 text-amber-800 shrink-0">
+                  <Lock className="w-5 h-5 shrink-0 animate-pulse" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-black text-amber-950 uppercase tracking-wider leading-none">
+                    🔒 Trancar Dia {selectedDate}
+                  </p>
+                  <p className="text-[11px] text-slate-600 leading-normal">
+                    Você possui <strong>{untrackedGuessesOnDay.length}</strong> palpite(s) salvo(s) para {selectedDate} que ainda não foram trancados. Tranque este dia para protegê-los de edições acidentais!
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm(`Deseja realmente trancar os ${untrackedGuessesOnDay.length} palpites salvos do dia ${selectedDate}?`)) {
+                    onLockIndividualGuesses(untrackedGuessesOnDay.map((g) => g.matchId));
+                  }
+                }}
+                className="w-full sm:w-auto py-2 px-4 bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-[11px] uppercase tracking-wider rounded-xl cursor-pointer transition-all shadow-xs active:scale-95 flex items-center justify-center gap-1.5 shrink-0 select-none"
+              >
+                <Lock className="w-3.5 h-3.5 shrink-0" />
+                <span>Trancar Palpites do Dia</span>
+              </button>
+            </div>
+          );
+        }
+        return null;
+      })()}
+
       {filteredMatches.length > 0 ? (
         filteredMatches.map((m) => {
           // Find current participant's guess
@@ -894,7 +941,8 @@ export default function MatchesList({
           // Allow submitting guesses even for already played or live games to let user consolidate results,
           // but lock if the profile is locked, we're not consulting ourselves, or the match has expired for guesses (12h limit)
           const isMatchExpired = isMatchExpiredForGuesses(m.date, m.id);
-          const isMatchLocked = !isConsultingSelf || (!!isActiveParticipantLocked && !isAdminMode) || (!isAdminMode && isMatchExpired);
+          const isMatchLockedIndividually = consultedParticipant?.lockedMatches?.includes(m.id);
+          const isMatchLocked = !isConsultingSelf || (!!isActiveParticipantLocked && !isAdminMode) || (!isAdminMode && isMatchExpired) || (!!isMatchLockedIndividually && !isAdminMode);
 
           // Calculate points for active participant if match score exists
           const scoreResult = calculateGuessPoints(
@@ -1110,18 +1158,34 @@ export default function MatchesList({
                       <div className="flex items-center gap-2">
                         {hasGuessed ? (
                           <div className="flex items-center gap-2 flex-wrap justify-end">
-                            <span className={`text-xs font-mono font-black px-2.5 py-0.5 rounded-md shadow-3xs select-none ${
+                            <span className={`text-xs font-mono font-black px-2.5 py-0.5 rounded-md shadow-3xs select-none flex items-center gap-1.5 ${
                               isConsultingSelf 
                                 ? 'text-slate-800 bg-white border border-slate-200' 
                                 : 'text-indigo-950 bg-white border border-indigo-200'
                             }`}>
-                              Palpite de {consultedParticipant.name}: {myGuess.homeScoreGuess} x {myGuess.awayScoreGuess}
+                              {isMatchLockedIndividually && <span title="Trancado individualmente por você">🔒</span>}
+                              <span>Palpite de {consultedParticipant.name}: {myGuess.homeScoreGuess} x {myGuess.awayScoreGuess}</span>
                               {myGuess.homeScoreGuess === myGuess.awayScoreGuess && myGuess.penaltyWinnerGuess && (
                                 <span className="text-amber-700 font-bold ml-1">
                                   (Pênaltis: {myGuess.penaltyWinnerGuess === 'home' ? m.homeTeam : m.awayTeam})
                                 </span>
                               )}
                             </span>
+
+                            {isConsultingSelf && isMatchLockedIndividually && !isMatchExpired && !isActiveParticipantLocked && onUnlockIndividualGuesses && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (window.confirm("🔓 Deseja realmente destrancar este palpite para poder editá-lo?")) {
+                                    onUnlockIndividualGuesses([m.id]);
+                                  }
+                                }}
+                                className="px-2.5 py-1 text-[10px] font-extrabold uppercase bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 rounded-lg cursor-pointer transition shadow-3xs active:scale-95"
+                                title="Destrancar palpite individual"
+                              >
+                                🔓 Destrancar
+                              </button>
+                            )}
                             
                             {m.homeScore !== null && m.awayScore !== null && (
                               <div className="inline-flex">
@@ -1312,14 +1376,31 @@ export default function MatchesList({
 
                           if (!isDirty && savedGuess) {
                             return (
-                              <button
-                                type="button"
-                                disabled
-                                className="w-full sm:w-auto py-2.5 px-4 rounded-xl text-[11px] font-extrabold uppercase tracking-wider bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center gap-1.5 select-none cursor-default"
-                              >
-                                <CheckCircle className="w-4 h-4 shrink-0 text-emerald-500" />
-                                <span>Palpite Salvo</span>
-                              </button>
+                              <div className="flex gap-1.5 flex-col xs:flex-row w-full sm:w-auto">
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="w-full sm:w-auto py-2.5 px-4 rounded-xl text-[11px] font-extrabold uppercase tracking-wider bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center gap-1.5 select-none cursor-default"
+                                >
+                                  <CheckCircle className="w-4 h-4 shrink-0 text-emerald-500" />
+                                  <span>Palpite Salvo</span>
+                                </button>
+                                {onLockIndividualGuesses && !isMatchExpired && !isActiveParticipantLocked && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (window.confirm("🔒 Deseja realmente trancar este palpite? Uma vez trancado, você não poderá alterá-lo a menos que clique em Destrancar antes do jogo expirar.")) {
+                                        onLockIndividualGuesses([m.id]);
+                                      }
+                                    }}
+                                    className="w-full sm:w-auto py-2.5 px-3 rounded-xl text-[11px] font-black uppercase tracking-wider bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                                    title="Trancar palpite individual"
+                                  >
+                                    <Lock className="w-3.5 h-3.5 shrink-0 text-amber-700" />
+                                    <span>Trancar</span>
+                                  </button>
+                                )}
+                              </div>
                             );
                           }
 

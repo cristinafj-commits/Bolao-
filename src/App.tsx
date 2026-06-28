@@ -486,6 +486,7 @@ export default function App() {
           isCustom: true,
           locked: !!data.locked,
           lockedFase2: !!data.lockedFase2,
+          lockedMatches: data.lockedMatches || [],
           role: data.role || 'servidor',
         };
 
@@ -855,6 +856,63 @@ export default function App() {
     } catch (err) {
       console.error("Erro ao bloquear palpites no Firebase:", err);
       triggerToast('🔐 Palpites bloqueados com sucesso em cache local!');
+    }
+  };
+
+  const handleLockIndividualGuesses = async (matchIds: string[]) => {
+    const activeParticipant = participants.find((p) => p.id === activeParticipantId);
+    if (!activeParticipant) return;
+
+    // Filter out matches that don't have guesses saved
+    const validMatchIdsToLock = matchIds.filter((mId) => {
+      const g = guesses.find((gu) => gu.participantId === activeParticipantId && gu.matchId === mId);
+      return g && g.homeScoreGuess !== null && g.homeScoreGuess !== undefined;
+    });
+
+    if (validMatchIdsToLock.length === 0) {
+      triggerToast('⚠️ Você não possui palpites preenchidos e salvos para trancar!');
+      return;
+    }
+
+    const currentLocked = activeParticipant.lockedMatches || [];
+    const updatedLocked = Array.from(new Set([...currentLocked, ...validMatchIdsToLock]));
+
+    // Update state
+    setParticipants((prev) =>
+      prev.map((p) => (p.id === activeParticipantId ? { ...p, lockedMatches: updatedLocked } : p))
+    );
+
+    try {
+      await setDoc(doc(db, "usuarios", activeParticipantId), {
+        lockedMatches: updatedLocked,
+      }, { merge: true });
+      triggerToast(`🔒 ${validMatchIdsToLock.length === 1 ? 'Palpite trancado' : `${validMatchIdsToLock.length} palpites trancados`} com sucesso!`);
+    } catch (err) {
+      console.error("Erro ao trancar palpites individuais:", err);
+      triggerToast(`🔒 Trancado em cache local.`);
+    }
+  };
+
+  const handleUnlockIndividualGuesses = async (matchIds: string[]) => {
+    const activeParticipant = participants.find((p) => p.id === activeParticipantId);
+    if (!activeParticipant) return;
+
+    const currentLocked = activeParticipant.lockedMatches || [];
+    const updatedLocked = currentLocked.filter((mId) => !matchIds.includes(mId));
+
+    // Update state
+    setParticipants((prev) =>
+      prev.map((p) => (p.id === activeParticipantId ? { ...p, lockedMatches: updatedLocked } : p))
+    );
+
+    try {
+      await setDoc(doc(db, "usuarios", activeParticipantId), {
+        lockedMatches: updatedLocked,
+      }, { merge: true });
+      triggerToast(`🔓 ${matchIds.length === 1 ? 'Palpite destrancado' : `${matchIds.length} palpites destrancados`} com sucesso!`);
+    } catch (err) {
+      console.error("Erro ao destrancar palpites individuais:", err);
+      triggerToast(`🔓 Destrancado em cache local.`);
     }
   };
 
@@ -1764,9 +1822,11 @@ export default function App() {
               
               {/* Participant selector engine */}
               {(() => {
+                const currentPhaseMatches = tourneyPhase === 'fase2' ? matchesFase2 : matches;
                 const activeGuessesOfParticipant = guesses.filter(
                   (g) =>
                     g.participantId === activeParticipantId &&
+                    currentPhaseMatches.some((m) => m.id === g.matchId) &&
                     g.homeScoreGuess !== null &&
                     g.homeScoreGuess !== undefined &&
                     String(g.homeScoreGuess).trim() !== '' &&
@@ -1774,7 +1834,7 @@ export default function App() {
                     g.awayScoreGuess !== undefined &&
                     String(g.awayScoreGuess).trim() !== ''
                 );
-                const pUnfilledCount = activeParticipantId ? Math.max(0, matches.length - activeGuessesOfParticipant.length) : 0;
+                const pUnfilledCount = activeParticipantId ? Math.max(0, currentPhaseMatches.length - activeGuessesOfParticipant.length) : 0;
 
                 return (
                   <ParticipantSelector
@@ -2083,6 +2143,8 @@ export default function App() {
                 isAdminMode={isAdminMode}
                 onUpdateActualScore={handleUpdateActualScore}
                 onLockGuesses={handleLockGuesses}
+                onLockIndividualGuesses={handleLockIndividualGuesses}
+                onUnlockIndividualGuesses={handleUnlockIndividualGuesses}
                 tourneyPhase={tourneyPhase}
               />
             </div>
