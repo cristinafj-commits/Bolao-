@@ -745,8 +745,8 @@ export default function MatchesList({
                 {isActiveParticipantLocked
                   ? `Seus palpites para a ${tourneyPhase === 'fase2' ? 'Segunda Fase (Mata-Mata)' : 'Primeira Fase (Grupos)'} estão validados e trancados definitivamente na nuvem. Boa sorte!`
                   : unfilledMatchesCount > 0
-                    ? `Você tem palpites salvos em modo rascunho. Se desejar, já pode oficializar e trancar todos os seus palpites atuais para esta fase (mesmo restando ${unfilledMatchesCount} jogo(s) sem palpites).`
-                    : `Parabéns! Todos os ${matches.length} jogos da ${tourneyPhase === 'fase2' ? 'Segunda Fase (Mata-Mata)' : 'Primeira Fase (Grupos)'} foram respondidos. Você já pode oficializar e trancar seus palpites para esta fase.`}
+                    ? `Seus palpites estão salvos em modo rascunho. Você pode salvá-los e alterá-los livremente. Para sua segurança, os palpites de cada jogo são bloqueados individualmente 12 horas antes do início da partida.`
+                    : `Parabéns! Todos os ${matches.length} jogos da ${tourneyPhase === 'fase2' ? 'Segunda Fase (Mata-Mata)' : 'Primeira Fase (Grupos)'} foram respondidos. Seus palpites serão bloqueados individualmente 12 horas antes do início de cada jogo.`}
               </span>
             </div>
           </div>
