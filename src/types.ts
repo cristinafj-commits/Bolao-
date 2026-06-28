@@ -12,6 +12,7 @@ export interface Match {
   minute: number; // 0 to 90 for LIVE simulator
   group: string;
   date: string;
+  penaltyWinner?: 'home' | 'away' | null;
 }
 
 export interface Participant {
@@ -32,6 +33,7 @@ export interface Guess {
   matchId: string;
   homeScoreGuess: number;
   awayScoreGuess: number;
+  penaltyWinnerGuess?: 'home' | 'away' | null;
 }
 
 export interface ParticipantScores {

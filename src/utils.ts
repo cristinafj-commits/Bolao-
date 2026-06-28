@@ -202,8 +202,10 @@ export function calculateGuessPoints(
   homeGuess: number | string | undefined | null,
   awayGuess: number | string | undefined | null,
   homeActual: number | string | null,
-  awayActual: number | string | null
-): { points: number; bonusPoints: number; type: 'EXACT' | 'DIFFERENCE' | 'ONE_TEAM' | 'OUTCOME' | 'ZERO' } {
+  awayActual: number | string | null,
+  penaltyWinnerGuess?: 'home' | 'away' | null,
+  penaltyWinnerActual?: 'home' | 'away' | null
+): { points: number; bonusPoints: number; type: 'EXACT' | 'DIFFERENCE' | 'ONE_TEAM' | 'OUTCOME' | 'ZERO'; penaltyBonus?: boolean } {
   if (homeGuess === undefined || homeGuess === null || homeGuess === '' || awayGuess === undefined || awayGuess === null || awayGuess === '') {
     return { points: 0, bonusPoints: 0, type: 'ZERO' };
   }
@@ -230,6 +232,15 @@ export function calculateGuessPoints(
     return { points: 0, bonusPoints: 0, type: 'ZERO' };
   }
 
+  // Check if penalty bonus applies: actual draw, guessed draw, penaltyWinnerGuess is correct
+  const hasPenaltyBonus = numHomeActual === numAwayActual &&
+                          numHomeGuess === numAwayGuess &&
+                          !!penaltyWinnerActual &&
+                          !!penaltyWinnerGuess &&
+                          penaltyWinnerGuess === penaltyWinnerActual;
+
+  const penaltyAddonPoints = hasPenaltyBonus ? 2 : 0;
+
   // EXACT Match score (e.g. guessed 2-1, ended 2-1)
   if (numHomeGuess === numHomeActual && numAwayGuess === numAwayActual) {
     // Placar exato = 3 pontos
@@ -237,7 +248,12 @@ export function calculateGuessPoints(
     // Acertar gols do perdedor = 1 ponto (gols do perdedor sempre certos no placar exato)
     // Não acumula o ponto de resultado (resultado = 0 se exato), conforme solicitado.
     // Total = 3 + 1 + 1 = 5 pontos.
-    return { points: 5, bonusPoints: 2, type: 'EXACT' };
+    return { 
+      points: 5 + penaltyAddonPoints, 
+      bonusPoints: 2 + penaltyAddonPoints, 
+      type: 'EXACT',
+      penaltyBonus: hasPenaltyBonus
+    };
   }
 
   // Determine correct winner/loser goals for non-exact guess but correct outcome
@@ -273,7 +289,12 @@ export function calculateGuessPoints(
   // Map our return to a compatible type so the leaderboard counts it correctly
   const type = pts === 2 ? 'ONE_TEAM' : 'OUTCOME';
 
-  return { points: pts, bonusPoints: bonusPts, type };
+  return { 
+    points: pts + penaltyAddonPoints, 
+    bonusPoints: bonusPts + penaltyAddonPoints, 
+    type,
+    penaltyBonus: hasPenaltyBonus
+  };
 }
 
 /**
@@ -319,7 +340,9 @@ export function calculateLeaderboard(
             userGuess.homeScoreGuess,
             userGuess.awayScoreGuess,
             m.homeScore,
-            m.awayScore
+            m.awayScore,
+            userGuess.penaltyWinnerGuess,
+            m.penaltyWinner
           );
 
           points += res.points;
@@ -431,7 +454,9 @@ export function calculateLeaderboardFase2(
             userGuess.homeScoreGuess,
             userGuess.awayScoreGuess,
             m.homeScore,
-            m.awayScore
+            m.awayScore,
+            userGuess.penaltyWinnerGuess,
+            m.penaltyWinner
           );
 
           points += res.points;

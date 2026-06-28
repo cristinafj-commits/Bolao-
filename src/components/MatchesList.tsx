@@ -35,10 +35,17 @@ interface MatchesListProps {
   guesses: Guess[];
   participants: Participant[];
   activeParticipantId: string;
-  onSaveGuess: (matchId: string, homeScore: number, awayScore: number) => void;
+  onSaveGuess: (matchId: string, homeScore: number, awayScore: number, penaltyWinnerGuess?: 'home' | 'away' | null) => void;
   onSaveMultipleGuesses?: (bets: { matchId: string; homeScore: number; awayScore: number }[]) => Promise<void>;
   isAdminMode: boolean;
-  onUpdateActualScore: (matchId: string, homeScore: number | null, awayScore: number | null, status: 'SCHEDULED' | 'LIVE' | 'FINISHED', minute?: number) => void;
+  onUpdateActualScore: (
+    matchId: string, 
+    homeScore: number | null, 
+    awayScore: number | null, 
+    status: 'SCHEDULED' | 'LIVE' | 'FINISHED', 
+    minute?: number,
+    penaltyWinner?: 'home' | 'away' | null
+  ) => void;
   onLockGuesses?: () => void;
   tourneyPhase?: 'grupo' | 'fase2';
 }
@@ -403,7 +410,10 @@ export default function MatchesList({
     const awayVal = parseInt(awayValStr, 10);
     if (isNaN(homeVal) || isNaN(awayVal)) return;
 
-    onSaveGuess(matchId, homeVal, awayVal);
+    const existingGuess = guesses.find((g) => g.participantId === activeParticipantId && g.matchId === matchId);
+    const finalPenaltyGuess = homeVal === awayVal ? (existingGuess?.penaltyWinnerGuess || null) : null;
+
+    onSaveGuess(matchId, homeVal, awayVal, finalPenaltyGuess);
 
     setJustSavedIds((prev) => ({ ...prev, [matchId]: true }));
     setTimeout(() => {
@@ -890,7 +900,9 @@ export default function MatchesList({
             myGuess?.homeScoreGuess,
             myGuess?.awayScoreGuess,
             m.homeScore,
-            m.awayScore
+            m.awayScore,
+            myGuess?.penaltyWinnerGuess,
+            m.penaltyWinner
           );
 
           return (
@@ -999,12 +1011,20 @@ export default function MatchesList({
                             VS
                           </div>
                         ) : (
-                          <div className={`flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 sm:px-4 sm:py-2 border-2 border-slate-200/95 shadow-3xs font-mono font-black text-sm xs:text-base sm:text-lg md:text-xl text-slate-900 select-none rounded-xl ${
-                            isLive ? 'bg-rose-50 border-rose-350 text-rose-700 animate-pulse' : ''
-                          }`}>
-                            <span>{m.homeScore !== null ? m.homeScore : '-'}</span>
-                            <span className="text-slate-400 font-normal">:</span>
-                            <span>{m.awayScore !== null ? m.awayScore : '-'}</span>
+                          <div className="flex flex-col items-center">
+                            <div className={`flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 sm:px-4 sm:py-2 border-2 border-slate-200/95 shadow-3xs font-mono font-black text-sm xs:text-base sm:text-lg md:text-xl text-slate-900 select-none rounded-xl ${
+                              isLive ? 'bg-rose-50 border-rose-350 text-rose-700 animate-pulse' : ''
+                            }`}>
+                              <span>{m.homeScore !== null ? m.homeScore : '-'}</span>
+                              <span className="text-slate-400 font-normal">:</span>
+                              <span>{m.awayScore !== null ? m.awayScore : '-'}</span>
+                            </div>
+
+                            {m.homeScore !== null && m.awayScore !== null && m.homeScore === m.awayScore && m.penaltyWinner && (
+                              <span className="text-[9px] font-black uppercase text-amber-800 bg-amber-100/70 border border-amber-300 px-2 py-0.5 rounded-md text-center mt-1.5 select-none whitespace-nowrap animate-fade-in shadow-3xs">
+                                🏆 Pênaltis: {m.penaltyWinner === 'home' ? m.homeTeam : m.awayTeam}
+                              </span>
+                            )}
                           </div>
                         )}
 
@@ -1095,6 +1115,11 @@ export default function MatchesList({
                                 : 'text-indigo-950 bg-white border border-indigo-200'
                             }`}>
                               Palpite de {consultedParticipant.name}: {myGuess.homeScoreGuess} x {myGuess.awayScoreGuess}
+                              {myGuess.homeScoreGuess === myGuess.awayScoreGuess && myGuess.penaltyWinnerGuess && (
+                                <span className="text-amber-700 font-bold ml-1">
+                                  (Pênaltis: {myGuess.penaltyWinnerGuess === 'home' ? m.homeTeam : m.awayTeam})
+                                </span>
+                              )}
                             </span>
                             
                             {m.homeScore !== null && m.awayScore !== null && (
@@ -1123,7 +1148,7 @@ export default function MatchesList({
                       </div>
                     ) : (
                       /* Display Editable prediction controls */
-                      <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto" id={`edit-guess-panel-${m.id}`}>
+                      <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto" id={`edit-guess-panel-${m.id}`}>
                         {m.homeScore !== null && m.awayScore !== null && hasGuessed && (
                           <div className="inline-flex shrink-0">
                             {scoreResult.points === 5 ? (
@@ -1141,62 +1166,109 @@ export default function MatchesList({
                             )}
                           </div>
                         )}
-                        <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10 p-2 rounded-2xl shadow-xs transition-all select-none">
-                          {/* HOME GOAL SLIDERS */}
-                          <div className="flex items-center gap-1">
-                            <button 
-                              type="button"
-                              onClick={() => adjustLocalGuess(m.id, 'home', -1)}
-                              className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 rounded-xl font-black text-sm select-none cursor-pointer transition active:scale-90"
-                            >
-                              -
-                            </button>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              placeholder="-"
-                              value={localHomeGuesses[m.id] ?? ''}
-                              onChange={(e) => handleInputChange(m.id, 'home', e.target.value)}
-                              className="w-9 text-center font-mono font-black text-sm text-slate-900 bg-transparent outline-none focus:outline-none placeholder-slate-300"
-                            />
-                            <button 
-                              type="button"
-                              onClick={() => adjustLocalGuess(m.id, 'home', 1)}
-                              className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 rounded-xl font-black text-sm select-none cursor-pointer transition active:scale-90"
-                            >
-                              +
-                            </button>
+                        <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+                          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10 p-2 rounded-2xl shadow-xs transition-all select-none justify-center">
+                            {/* HOME GOAL SLIDERS */}
+                            <div className="flex items-center gap-1">
+                              <button 
+                                type="button"
+                                onClick={() => adjustLocalGuess(m.id, 'home', -1)}
+                                className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 rounded-xl font-black text-sm select-none cursor-pointer transition active:scale-90"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                placeholder="-"
+                                value={localHomeGuesses[m.id] ?? ''}
+                                onChange={(e) => handleInputChange(m.id, 'home', e.target.value)}
+                                className="w-9 text-center font-mono font-black text-sm text-slate-900 bg-transparent outline-none focus:outline-none placeholder-slate-300"
+                              />
+                              <button 
+                                type="button"
+                                onClick={() => adjustLocalGuess(m.id, 'home', 1)}
+                                className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 rounded-xl font-black text-sm select-none cursor-pointer transition active:scale-90"
+                              >
+                                +
+                              </button>
+                            </div>
+
+                            <span className="text-slate-400 font-black text-xs px-1 select-none text-center">x</span>
+
+                            {/* AWAY GOAL SLIDERS */}
+                            <div className="flex items-center gap-1">
+                              <button 
+                                type="button"
+                                onClick={() => adjustLocalGuess(m.id, 'away', -1)}
+                                className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 rounded-xl font-black text-sm select-none cursor-pointer transition active:scale-90"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                placeholder="-"
+                                value={localAwayGuesses[m.id] ?? ''}
+                                onChange={(e) => handleInputChange(m.id, 'away', e.target.value)}
+                                className="w-9 text-center font-mono font-black text-sm text-slate-900 bg-transparent outline-none focus:outline-none placeholder-slate-300"
+                              />
+                              <button 
+                                type="button"
+                                onClick={() => adjustLocalGuess(m.id, 'away', 1)}
+                                className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 rounded-xl font-black text-sm select-none cursor-pointer transition active:scale-90"
+                              >
+                                +
+                              </button>
+                            </div>
                           </div>
 
-                          <span className="text-slate-400 font-black text-xs px-1 select-none text-center">x</span>
-
-                          {/* AWAY GOAL SLIDERS */}
-                          <div className="flex items-center gap-1">
-                            <button 
-                              type="button"
-                              onClick={() => adjustLocalGuess(m.id, 'away', -1)}
-                              className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 rounded-xl font-black text-sm select-none cursor-pointer transition active:scale-90"
-                            >
-                              -
-                            </button>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              placeholder="-"
-                              value={localAwayGuesses[m.id] ?? ''}
-                              onChange={(e) => handleInputChange(m.id, 'away', e.target.value)}
-                              className="w-9 text-center font-mono font-black text-sm text-slate-900 bg-transparent outline-none focus:outline-none placeholder-slate-300"
-                            />
-                            <button 
-                              type="button"
-                              onClick={() => adjustLocalGuess(m.id, 'away', 1)}
-                              className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 rounded-xl font-black text-sm select-none cursor-pointer transition active:scale-90"
-                            >
-                              +
-                            </button>
-                          </div>
+                          {/* USER PENALTY WINNER PICKER */}
+                          {(() => {
+                            const valHome = localHomeGuesses[m.id] ?? '';
+                            const valAway = localAwayGuesses[m.id] ?? '';
+                            if (valHome !== '' && valAway !== '' && valHome === valAway) {
+                              const currentSelected = myGuess?.penaltyWinnerGuess;
+                              return (
+                                <div className="bg-amber-50/75 border border-amber-250 p-2 rounded-xl text-center flex flex-col items-center gap-1.5 animate-in fade-in duration-200 shadow-2xs" id={`penalty-guess-${m.id}`}>
+                                  <span className="text-[10px] font-black uppercase text-amber-900 tracking-wider">
+                                    🏆 Empate! Quem vence nos pênaltis?
+                                  </span>
+                                  <div className="flex items-center gap-1.5 justify-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        onSaveGuess(m.id, parseInt(valHome, 10), parseInt(valAway, 10), 'home');
+                                      }}
+                                      className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-tight rounded-lg border cursor-pointer transition-all duration-200 ${
+                                        currentSelected === 'home'
+                                          ? 'bg-amber-500 border-amber-600 text-white shadow-xs font-black scale-105'
+                                          : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                                      }`}
+                                    >
+                                      {m.homeTeam}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        onSaveGuess(m.id, parseInt(valHome, 10), parseInt(valAway, 10), 'away');
+                                      }}
+                                      className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-tight rounded-lg border cursor-pointer transition-all duration-200 ${
+                                        currentSelected === 'away'
+                                          ? 'bg-amber-500 border-amber-600 text-white shadow-xs font-black scale-105'
+                                          : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                                      }`}
+                                    >
+                                      {m.awayTeam}
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
 
                         {/* HIGH-QUALITY MANUAL SAVE BUTTON */}
@@ -1307,6 +1379,38 @@ export default function MatchesList({
                       </div>
                     )}
 
+                    {(() => {
+                      const finalHome = currentAdminHomeScore !== null && currentAdminHomeScore !== undefined && String(currentAdminHomeScore).trim() !== '' ? Number(currentAdminHomeScore) : null;
+                      const finalAway = currentAdminAwayScore !== null && currentAdminAwayScore !== undefined && String(currentAdminAwayScore).trim() !== '' ? Number(currentAdminAwayScore) : null;
+                      
+                      if (selectedStatus === 'FINISHED' && finalHome !== null && finalAway !== null && finalHome === finalAway) {
+                        return (
+                          <div className="flex items-center gap-1 bg-amber-105 border border-amber-350 rounded-lg px-2 py-1 animate-fade-in">
+                            <span className="text-[9px] font-black uppercase text-amber-900 mr-1 select-none font-mono">Pênaltis:</span>
+                            <select
+                              value={adminScores[m.id]?.penaltyWinner || m.penaltyWinner || ''}
+                              onChange={(e) => {
+                                const val = e.target.value as 'home' | 'away' | '';
+                                setAdminScores((prev) => ({
+                                  ...prev,
+                                  [m.id]: {
+                                    ...(prev[m.id] || { home: finalHome, away: finalAway, status: selectedStatus }),
+                                    penaltyWinner: val === '' ? null : val,
+                                  }
+                                }));
+                              }}
+                              className="bg-transparent text-amber-950 font-mono font-extrabold text-[10px] uppercase select-none tracking-wide cursor-pointer outline-none border-none py-0 px-1 focus:ring-0"
+                            >
+                              <option value="">🔮 Escolher Vencedor</option>
+                              <option value="home">🏠 {m.homeTeam}</option>
+                              <option value="away">✈️ {m.awayTeam}</option>
+                            </select>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
                     <button
                       onClick={() => {
                         const finalHome = currentAdminHomeScore !== null && currentAdminHomeScore !== undefined && String(currentAdminHomeScore).trim() !== '' ? Number(currentAdminHomeScore) : null;
@@ -1316,12 +1420,17 @@ export default function MatchesList({
                           ? (adminScores[m.id]?.minute !== undefined ? adminScores[m.id]?.minute : m.minute)
                           : (selectedStatus === 'FINISHED' ? 90 : 0);
 
+                        const finalPenaltyWinner = adminScores[m.id]?.penaltyWinner !== undefined 
+                          ? adminScores[m.id]?.penaltyWinner 
+                          : m.penaltyWinner;
+
                         onUpdateActualScore(
                           m.id,
                           finalHome,
                           finalAway,
                           selectedStatus,
-                          finalMinute
+                          finalMinute,
+                          finalPenaltyWinner || null
                         );
 
                         // Trigger visual success confirmation feedback
@@ -1403,10 +1512,15 @@ export default function MatchesList({
                             </span>
                           </div>
                           <div>
-                            {otherGuess ? (
+                             {otherGuess ? (
                               <div className="flex items-center gap-1.5">
                                 <span className="font-mono font-bold text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded-sm">
                                   {otherGuess.homeScoreGuess}x{otherGuess.awayScoreGuess}
+                                  {otherGuess.homeScoreGuess === otherGuess.awayScoreGuess && otherGuess.penaltyWinnerGuess && (
+                                    <span className="text-[10px] text-amber-700 font-extrabold ml-1">
+                                      (P: {otherGuess.penaltyWinnerGuess === 'home' ? 'Casa' : 'Fora'})
+                                    </span>
+                                  )}
                                 </span>
                                 {otherPoints !== null && (
                                   <span

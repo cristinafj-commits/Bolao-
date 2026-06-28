@@ -297,6 +297,7 @@ export default function App() {
               minute: m.minute !== undefined ? m.minute : (localFallback?.minute || 0),
               group: m.group || localFallback?.group || 'Copa do Mundo',
               date: m.date || localFallback?.date || '',
+              penaltyWinner: m.penaltyWinner || null,
             };
           });
           setMatches(mapped);
@@ -415,6 +416,7 @@ export default function App() {
               minute: m.minute !== undefined ? m.minute : (localFallback?.minute || 0),
               group: m.group || localFallback?.group || 'Segunda Fase',
               date: m.date || localFallback?.date || '',
+              penaltyWinner: m.penaltyWinner || null,
             };
           });
           setMatchesFase2(mapped);
@@ -499,6 +501,7 @@ export default function App() {
               matchId: matchId,
               homeScoreGuess: scoreItem.scoreA !== undefined ? scoreItem.scoreA : scoreItem.homeScoreGuess,
               awayScoreGuess: scoreItem.scoreB !== undefined ? scoreItem.scoreB : scoreItem.awayScoreGuess,
+              penaltyWinnerGuess: scoreItem.penaltyWinnerGuess || null,
             });
           }
         });
@@ -629,7 +632,12 @@ export default function App() {
   };
 
     // Guess Saving
-  const handleSaveGuess = async (matchId: string, homeScore: number, awayScore: number) => {
+  const handleSaveGuess = async (
+    matchId: string, 
+    homeScore: number, 
+    awayScore: number, 
+    penaltyWinnerGuess: 'home' | 'away' | null = null
+  ) => {
     const activeParticipant = participants.find((p) => p.id === activeParticipantId);
     const isLocked = tourneyPhase === 'fase2' ? activeParticipant?.lockedFase2 : activeParticipant?.locked;
     if (isLocked && !isAdminMode) {
@@ -641,11 +649,17 @@ export default function App() {
     const match = currentMatches.find((m) => m.id === matchId);
     const matchLabel = match ? `${match.homeTeam} vs ${match.awayTeam}` : 'jogo';
 
-    const newGuess = {
+    const existingGuess = guesses.find((g) => g.participantId === activeParticipantId && g.matchId === matchId);
+    const finalPenaltyGuess = penaltyWinnerGuess
+      ? penaltyWinnerGuess
+      : (homeScore === awayScore ? (existingGuess?.penaltyWinnerGuess || null) : null);
+
+    const newGuess: Guess = {
       participantId: activeParticipantId,
       matchId,
       homeScoreGuess: homeScore,
       awayScoreGuess: awayScore,
+      penaltyWinnerGuess: finalPenaltyGuess,
     };
 
     setGuesses((prev) => {
@@ -657,11 +671,12 @@ export default function App() {
       const currentGuesses = guesses.filter((g) => g.participantId === activeParticipantId && g.matchId !== matchId);
       const allGuesses = [...currentGuesses, newGuess];
 
-      const palpitesObj: Record<string, { scoreA: number; scoreB: number }> = {};
+      const palpitesObj: Record<string, { scoreA: number; scoreB: number; penaltyWinnerGuess?: 'home' | 'away' | null }> = {};
       allGuesses.forEach((g) => {
         palpitesObj[g.matchId] = {
           scoreA: g.homeScoreGuess,
           scoreB: g.awayScoreGuess,
+          penaltyWinnerGuess: g.penaltyWinnerGuess || null,
         };
       });
 
@@ -673,7 +688,13 @@ export default function App() {
           imageUrl: activeParticipant.imageUrl || '',
           palpites: palpitesObj,
         }, { merge: true });
-        triggerToast(`☁️ Palpite na Nuvem! ${matchLabel}: ${homeScore} x ${awayScore}`);
+        
+        let toastMsg = `☁️ Palpite na Nuvem! ${matchLabel}: ${homeScore} x ${awayScore}`;
+        if (homeScore === awayScore && finalPenaltyGuess) {
+          const winnerTeamName = finalPenaltyGuess === 'home' ? match?.homeTeam : match?.awayTeam;
+          toastMsg += ` (Vence nos Pênaltis: ${winnerTeamName})`;
+        }
+        triggerToast(toastMsg);
       } catch (err) {
         console.error("Erro ao salvar palpite no Firebase:", err);
         triggerToast(`✅ Salvo Localmente: ${homeScore} x ${awayScore}`);
@@ -696,12 +717,14 @@ export default function App() {
     setGuesses((prev) => {
       let current = [...prev];
       bets.forEach((bet) => {
+        const existing = prev.find((g) => g.participantId === activeParticipantId && g.matchId === bet.matchId);
         current = current.filter((g) => !(g.participantId === activeParticipantId && g.matchId === bet.matchId));
         current.push({
           participantId: activeParticipantId,
           matchId: bet.matchId,
           homeScoreGuess: bet.homeScore,
           awayScoreGuess: bet.awayScore,
+          penaltyWinnerGuess: bet.homeScore === bet.awayScore ? (existing?.penaltyWinnerGuess || null) : null,
         });
       });
       return current;
@@ -711,20 +734,23 @@ export default function App() {
       let currentGuesses = guesses.filter((g) => g.participantId === activeParticipantId);
       
       bets.forEach((bet) => {
+        const existing = currentGuesses.find((g) => g.matchId === bet.matchId);
         currentGuesses = currentGuesses.filter((g) => g.matchId !== bet.matchId);
         currentGuesses.push({
           participantId: activeParticipantId,
           matchId: bet.matchId,
           homeScoreGuess: bet.homeScore,
           awayScoreGuess: bet.awayScore,
+          penaltyWinnerGuess: bet.homeScore === bet.awayScore ? (existing?.penaltyWinnerGuess || null) : null,
         });
       });
 
-      const palpitesObj: Record<string, { scoreA: number; scoreB: number }> = {};
+      const palpitesObj: Record<string, { scoreA: number; scoreB: number; penaltyWinnerGuess?: 'home' | 'away' | null }> = {};
       currentGuesses.forEach((g) => {
         palpitesObj[g.matchId] = {
           scoreA: g.homeScoreGuess,
           scoreB: g.awayScoreGuess,
+          penaltyWinnerGuess: g.penaltyWinnerGuess || null,
         };
       });
 
@@ -949,7 +975,8 @@ export default function App() {
     homeScore: number | null,
     awayScore: number | null,
     status: 'SCHEDULED' | 'LIVE' | 'FINISHED',
-    minuteParam?: number | null
+    minuteParam?: number | null,
+    penaltyWinner: 'home' | 'away' | null = null
   ) => {
     const isFase2 = tourneyPhase === 'fase2';
     const targetMatches = isFase2 ? matchesFase2 : matches;
@@ -970,6 +997,7 @@ export default function App() {
           awayScore,
           status,
           minute: finalMinute,
+          penaltyWinner: homeScore === awayScore ? penaltyWinner : null,
         };
       }
       return m;
@@ -992,7 +1020,8 @@ export default function App() {
       minute: m.minute,
       group: m.group,
       homeFlag: m.homeFlag,
-      awayFlag: m.awayFlag
+      awayFlag: m.awayFlag,
+      penaltyWinner: m.penaltyWinner || null,
     }));
 
     try {

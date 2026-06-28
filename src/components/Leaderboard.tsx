@@ -923,8 +923,8 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
                     const isPlayedState = m.homeScore !== null && m.awayScore !== null;
                     
                     const calc = guess && isPlayedState
-                      ? calculateGuessPoints(guess.homeScoreGuess, guess.awayScoreGuess, m.homeScore, m.awayScore)
-                      : { points: 0, bonusPoints: 0, type: 'ZERO' as const };
+                      ? calculateGuessPoints(guess.homeScoreGuess, guess.awayScoreGuess, m.homeScore, m.awayScore, guess.penaltyWinnerGuess, m.penaltyWinner)
+                      : { points: 0, bonusPoints: 0, type: 'ZERO' as const, penaltyBonus: false };
 
                     // Determine detailed items feedback
                     const hits: string[] = [];
@@ -936,11 +936,11 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
                     let pointsColorClass = 'text-slate-400 bg-slate-50 border-slate-205';
 
                     if (isPlayedState) {
-                      if (calc.points === 5) {
-                        pointsText = '+5 pontos [Placar Exato]';
+                      if (calc.points >= 5) {
+                        pointsText = `+${calc.points} pontos [Placar Exato${calc.penaltyBonus ? ' + Pênaltis' : ''}]`;
                         pointsColorClass = 'text-emerald-800 bg-emerald-50/70 border-emerald-300 font-extrabold';
                       } else if (calc.points > 0) {
-                        pointsText = `+${calc.points} ${calc.points === 1 ? 'ponto' : 'pontos'} [Parcial]`;
+                        pointsText = `+${calc.points} ${calc.points === 1 ? 'ponto' : 'pontos'} [Parcial${calc.penaltyBonus ? ' + Pênaltis' : ''}]`;
                         pointsColorClass = 'text-blue-800 bg-blue-50/70 border-blue-200 font-bold';
                       } else {
                         pointsText = '0 pontos';
@@ -990,6 +990,15 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
                             if (!winnerGoalsCorrect && !loserGoalsCorrect) {
                               hits.push('ℹ Sem bônus de gols do vencedor/perdedor (0 pts)');
                             }
+                          }
+
+                          if (calc.penaltyBonus) {
+                            const winnerName = m.penaltyWinner === 'home' ? m.homeTeam : m.awayTeam;
+                            hits.push(`🎯 Vencedor nos Pênaltis: ${winnerName} (+2 pts)`);
+                          } else if (m.homeScore === m.awayScore && m.penaltyWinner && guess?.penaltyWinnerGuess) {
+                            const actualWinner = m.penaltyWinner === 'home' ? m.homeTeam : m.awayTeam;
+                            const guessedWinner = guess.penaltyWinnerGuess === 'home' ? m.homeTeam : m.awayTeam;
+                            hits.push(`❌ Pênaltis: Escolheu ${guessedWinner}, mas foi ${actualWinner} (0 pts)`);
                           }
                         } else {
                           hits.push('❌ Resultado incorreto (0 pts)');
