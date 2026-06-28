@@ -236,6 +236,7 @@ export default function MatchesList({
     const activeGuesses = guesses.filter(
       (g) =>
         g.participantId === activeParticipantId &&
+        matches.some((m) => m.id === g.matchId) &&
         g.homeScoreGuess !== null &&
         g.homeScoreGuess !== undefined &&
         String(g.homeScoreGuess).trim() !== '' &&
@@ -244,7 +245,7 @@ export default function MatchesList({
         String(g.awayScoreGuess).trim() !== ''
     );
     return Math.max(0, matches.length - activeGuesses.length);
-  }, [guesses, activeParticipantId, matches.length]);
+  }, [guesses, activeParticipantId, matches]);
 
   // Parse custom strings like "12 Jun, 15:00" to secure numeric timestamps for chronologic sorting
   const parseDateForSorting = (dateStr: string) => {
@@ -733,17 +734,17 @@ export default function MatchesList({
             <div className="space-y-0.5">
               <span className="font-extrabold text-xs uppercase tracking-wider block">
                 {isActiveParticipantLocked 
-                  ? '🔒 Seus Palpites Estão Consolidados' 
+                  ? `🔒 Palpites da ${tourneyPhase === 'fase2' ? 'Segunda Fase' : 'Primeira Fase'} Consolidados` 
                   : unfilledMatchesCount > 0
                     ? `📝 Palpites em Modo Rascunho (${matches.length - unfilledMatchesCount}/${matches.length} Preenchidos)`
-                    : '🎉 Pronto para Trancar Tudo!'}
+                    : `🎉 Pronto para Trancar a ${tourneyPhase === 'fase2' ? 'Segunda Fase' : 'Primeira Fase'}!`}
               </span>
               <span className="text-xs text-slate-600 mt-1 block leading-relaxed">
                 {isActiveParticipantLocked
-                  ? `Seus palpites para todos os jogos da Copa estão validados e trancados definitivamente na nuvem. Boa sorte!`
+                  ? `Seus palpites para todos os jogos da ${tourneyPhase === 'fase2' ? 'Segunda Fase (Mata-Mata)' : 'Primeira Fase (Grupos)'} estão validados e trancados definitivamente na nuvem. Boa sorte!`
                   : unfilledMatchesCount > 0
-                    ? `Faltam palpites para ${unfilledMatchesCount} jogo(s) de um total de ${matches.length}. Você precisa cadastrar palpites para todos os dias e jogos para liberar a confirmação.`
-                    : `Parabéns! Todos os ${matches.length} jogos foram respondidos. Você já pode oficializar e trancar seus palpites para a competição.`}
+                    ? `Faltam palpites para ${unfilledMatchesCount} jogo(s) de um total de ${matches.length} da ${tourneyPhase === 'fase2' ? 'Segunda Fase' : 'Primeira Fase'}. Você precisa cadastrar palpites para todos os jogos da fase para liberar a confirmação.`
+                    : `Parabéns! Todos os ${matches.length} jogos da ${tourneyPhase === 'fase2' ? 'Segunda Fase (Mata-Mata)' : 'Primeira Fase (Grupos)'} foram respondidos. Você já pode oficializar e trancar seus palpites para esta fase.`}
               </span>
             </div>
           </div>
