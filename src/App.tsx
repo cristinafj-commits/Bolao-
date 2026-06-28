@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Match, Participant, Guess } from './types';
-import { initialMatches, initialParticipants, initialGuesses, calculateLeaderboard } from './utils';
+import { initialMatches, initialMatchesFase2, initialParticipants, initialGuesses, calculateLeaderboard, calculateLeaderboardFase2 } from './utils';
 import ParticipantSelector from './components/ParticipantSelector';
 import Leaderboard from './components/Leaderboard';
 import MatchesList from './components/MatchesList';
@@ -35,6 +35,26 @@ export default function App() {
     const saved = localStorage.getItem('bolao_matches');
     return saved ? JSON.parse(saved) : initialMatches;
   });
+
+  const [tourneyPhase, setTourneyPhase] = useState<'grupo' | 'fase2'>(() => {
+    const saved = localStorage.getItem('bolao_tourney_phase');
+    return (saved === 'grupo' || saved === 'fase2') ? saved : 'fase2';
+  });
+
+  const [matchesFase2, setMatchesFase2] = useState<Match[]>(() => {
+    const saved = localStorage.getItem('bolao_matches_fase2');
+    return saved ? JSON.parse(saved) : initialMatchesFase2;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('bolao_matches_fase2', JSON.stringify(matchesFase2));
+  }, [matchesFase2]);
+
+  const handleSwitchPhase = (phase: 'grupo' | 'fase2') => {
+    setTourneyPhase(phase);
+    localStorage.setItem('bolao_tourney_phase', phase);
+    triggerToast(`🔄 Alternado para: ${phase === 'grupo' ? '1ª Fase (Grupos)' : '2ª Fase (Mata-Mata)'}`);
+  };
 
   const [guesses, setGuesses] = useState<Guess[]>(() => {
     const saved = localStorage.getItem('bolao_guesses');
@@ -330,6 +350,119 @@ export default function App() {
     return () => unsubscribeMatches();
   }, []);
 
+  // LIVE CLOUD FIREBASE SYNC: Phase 2 Matches & Results subscription under config/jogos_fase2
+  useEffect(() => {
+    const unsubscribeMatchesFase2 = onSnapshot(doc(db, "config", "jogos_fase2"), (snapshot) => {
+      if (snapshot.exists()) {
+        let fbMatches = snapshot.data().lista;
+        if (fbMatches && typeof fbMatches === 'object' && !Array.isArray(fbMatches)) {
+          fbMatches = Object.values(fbMatches);
+        }
+        if (Array.isArray(fbMatches)) {
+          const hasPlaceholders = fbMatches.some((m: any) => {
+            const name = m.teamA || m.homeTeam || "";
+            return (
+              name.includes("Vencedor Grupo") ||
+              name.includes("Melhor 3º") ||
+              name.includes("Segundo Grupo") ||
+              name.includes("Vencedor K0") ||
+              name.includes("Vencedor K1") ||
+              name.includes("Vencedor K2") ||
+              name.includes("Vencedor K3") ||
+              name.includes("Vencedor K4")
+            );
+          });
+
+          if (hasPlaceholders || fbMatches.length !== initialMatchesFase2.length) {
+            console.log("Detectados marcadores de posição antigos. Atualizando para os confrontos reais da Fase 2...");
+            const converted = initialMatchesFase2.map((m) => ({
+              id: m.id,
+              teamA: m.homeTeam,
+              teamB: m.awayTeam,
+              scoreA: m.homeScore,
+              scoreB: m.awayScore,
+              date: m.date,
+              status: m.status,
+              minute: m.minute,
+              group: m.group,
+              homeFlag: m.homeFlag,
+              awayFlag: m.awayFlag
+            }));
+            setDoc(doc(db, "config", "jogos_fase2"), { lista: converted })
+              .catch((err) => console.error("Erro ao atualizar para confrontos reais:", err));
+            return;
+          }
+
+          const mapped = fbMatches.map((m: any) => {
+            const localFallback = initialMatchesFase2.find((lm) => lm.id === m.id);
+            const rawScoreA = m.scoreA !== undefined ? m.scoreA : (m.homeScore !== undefined ? m.homeScore : null);
+            const rawScoreB = m.scoreB !== undefined ? m.scoreB : (m.awayScore !== undefined ? m.awayScore : null);
+
+            const homeScore = (rawScoreA !== null && rawScoreA !== undefined) ? Number(rawScoreA) : null;
+            const awayScore = (rawScoreB !== null && rawScoreB !== undefined) ? Number(rawScoreB) : null;
+
+            const finalStatus = m.status !== undefined ? m.status : (localFallback?.status || 'SCHEDULED');
+
+            return {
+              id: m.id,
+              homeTeam: m.teamA || m.homeTeam || localFallback?.homeTeam || 'Time A',
+              awayTeam: m.teamB || m.awayTeam || localFallback?.awayTeam || 'Time B',
+              homeFlag: m.homeFlag || localFallback?.homeFlag || '⚽',
+              awayFlag: m.awayFlag || localFallback?.awayFlag || '⚽',
+              homeScore,
+              awayScore,
+              status: finalStatus,
+              minute: m.minute !== undefined ? m.minute : (localFallback?.minute || 0),
+              group: m.group || localFallback?.group || 'Segunda Fase',
+              date: m.date || localFallback?.date || '',
+            };
+          });
+          setMatchesFase2(mapped);
+        } else {
+          // Document exists but does not contain a valid matches list. Re-seed it.
+          const converted = initialMatchesFase2.map((m) => ({
+            id: m.id,
+            teamA: m.homeTeam,
+            teamB: m.awayTeam,
+            scoreA: m.homeScore,
+            scoreB: m.awayScore,
+            date: m.date,
+            status: m.status,
+            minute: m.minute,
+            group: m.group,
+            homeFlag: m.homeFlag,
+            awayFlag: m.awayFlag
+          }));
+          setDoc(doc(db, "config", "jogos_fase2"), { lista: converted })
+            .catch((err) => console.error("Error re-initializing invalid matches document for Phase 2:", err));
+        }
+      } else {
+        // Document config/jogos_fase2 does not exist yet. Initialize it with our local initialMatchesFase2
+        const converted = initialMatchesFase2.map((m) => ({
+          id: m.id,
+          teamA: m.homeTeam,
+          teamB: m.awayTeam,
+          scoreA: m.homeScore,
+          scoreB: m.awayScore,
+          date: m.date,
+          status: m.status,
+          minute: m.minute,
+          group: m.group,
+          homeFlag: m.homeFlag,
+          awayFlag: m.awayFlag
+        }));
+        setDoc(doc(db, "config", "jogos_fase2"), { lista: converted })
+          .catch((err) => {
+            console.error("Erro ao inicializar jogos fase 2 no Firebase:", err);
+          });
+      }
+    }, (error) => {
+      console.error("Erro ao escutar jogos fase 2 do Firebase:", error);
+    });
+
+    return () => unsubscribeMatchesFase2();
+  }, []);
+
   // LIVE CLOUD FIREBASE SYNC: Users profiles & guesses under usuarios
   useEffect(() => {
     const unsubscribeUsers = onSnapshot(collection(db, "usuarios"), (snapshot) => {
@@ -350,6 +483,7 @@ export default function App() {
           imageUrl: data.imageUrl || '',
           isCustom: true,
           locked: !!data.locked,
+          lockedFase2: !!data.lockedFase2,
           role: data.role || 'servidor',
         };
 
@@ -497,12 +631,14 @@ export default function App() {
     // Guess Saving
   const handleSaveGuess = async (matchId: string, homeScore: number, awayScore: number) => {
     const activeParticipant = participants.find((p) => p.id === activeParticipantId);
-    if (activeParticipant?.locked && !isAdminMode) {
-      triggerToast('⚠️ Seus palpites estão consolidados e bloqueados!');
+    const isLocked = tourneyPhase === 'fase2' ? activeParticipant?.lockedFase2 : activeParticipant?.locked;
+    if (isLocked && !isAdminMode) {
+      triggerToast('⚠️ Seus palpites para esta fase estão consolidados e bloqueados!');
       return;
     }
 
-    const match = matches.find((m) => m.id === matchId);
+    const currentMatches = tourneyPhase === 'fase2' ? matchesFase2 : matches;
+    const match = currentMatches.find((m) => m.id === matchId);
     const matchLabel = match ? `${match.homeTeam} vs ${match.awayTeam}` : 'jogo';
 
     const newGuess = {
@@ -549,8 +685,9 @@ export default function App() {
 
   const handleSaveMultipleGuesses = async (bets: { matchId: string; homeScore: number; awayScore: number }[]) => {
     const activeParticipant = participants.find((p) => p.id === activeParticipantId);
-    if (activeParticipant?.locked && !isAdminMode) {
-      triggerToast('⚠️ Seus palpites estão consolidados e bloqueados!');
+    const isLocked = tourneyPhase === 'fase2' ? activeParticipant?.lockedFase2 : activeParticipant?.locked;
+    if (isLocked && !isAdminMode) {
+      triggerToast('⚠️ Seus palpites para esta fase estão consolidados e bloqueados!');
       return;
     }
 
@@ -613,58 +750,80 @@ export default function App() {
     const activeParticipant = participants.find((p) => p.id === activeParticipantId);
     if (!activeParticipant) return;
 
-    if (activeParticipant.locked) {
+    const isLocked = tourneyPhase === 'fase2' ? activeParticipant.lockedFase2 : activeParticipant.locked;
+    if (isLocked) {
       triggerToast('⚠️ Seus palpites já estão bloqueados!');
       return;
     }
 
-    // Determine current guesses for active participant
+    const currentMatches = tourneyPhase === 'fase2' ? matchesFase2 : matches;
+
+    // Determine current guesses for active participant in this phase
     const activeGuesses = guesses.filter(
       (g) =>
         g.participantId === activeParticipantId &&
+        currentMatches.some((m) => m.id === g.matchId) &&
         g.homeScoreGuess !== null &&
         g.homeScoreGuess !== undefined
     );
 
     // Block locking if any matches remain unpredicted
-    const unfilledCount = matches.length - activeGuesses.length;
+    const unfilledCount = currentMatches.length - activeGuesses.length;
     if (unfilledCount > 0) {
-      alert(`⚠️ Confirmação Recusada: Você ainda não preencheu todos os dias de jogos! Faltam ${unfilledCount} palpites de um total de ${matches.length}.\n\nPor favor, salve palpites para todos os jogos para liberar o bloqueio de rascunhos.`);
+      alert(`⚠️ Confirmação Recusada: Você ainda não preencheu todos os jogos desta fase! Faltam ${unfilledCount} palpites de um total de ${currentMatches.length}.\n\nPor favor, salve palpites para todos os jogos para liberar o bloqueio de rascunhos.`);
       triggerToast(`⚠️ Faltam palpites para ${unfilledCount} jogo(s).`);
       return;
     }
 
-    if (!window.confirm('⚠️ ATENÇÃO: Deseja realmente confirmar e BLOQUEAR todos os seus palpites de uma vez? \n\nUma vez bloqueados, você NÃO poderá fazer quaisquer edições subsequentes.')) {
+    const phaseLabel = tourneyPhase === 'fase2' ? 'Segunda Fase (Mata-Mata)' : 'Primeira Fase (Grupos)';
+    if (!window.confirm(`⚠️ ATENÇÃO: Deseja realmente confirmar e BLOQUEAR todos os seus palpites da ${phaseLabel} de uma vez? \n\nUma vez bloqueados, você NÃO poderá fazer quaisquer edições subsequentes nesta fase.`)) {
       return;
     }
 
     // Update locally
     const updatedParticipants = participants.map((p) => {
       if (p.id === activeParticipantId) {
-        return { ...p, locked: true };
+        if (tourneyPhase === 'fase2') {
+          return { ...p, lockedFase2: true };
+        } else {
+          return { ...p, locked: true };
+        }
       }
       return p;
     });
     setParticipants(updatedParticipants);
 
-    // Sync to firebase
+    // Prepare palpites map to save (include all of them from both phases to not wipe anything!)
     const palpitesObj: Record<string, { scoreA: number; scoreB: number }> = {};
-    activeGuesses.forEach((g) => {
-      palpitesObj[g.matchId] = {
-        scoreA: g.homeScoreGuess,
-        scoreB: g.awayScoreGuess,
-      };
+    guesses.forEach((g) => {
+      if (g.participantId === activeParticipantId && g.homeScoreGuess !== null && g.homeScoreGuess !== undefined) {
+        palpitesObj[g.matchId] = {
+          scoreA: g.homeScoreGuess,
+          scoreB: g.awayScoreGuess,
+        };
+      }
     });
 
     try {
-      await setDoc(doc(db, "usuarios", activeParticipantId), {
-        nome: activeParticipant.name,
-        avatar: activeParticipant.avatar || '⚽',
-        email: activeParticipant.email || '',
-        imageUrl: activeParticipant.imageUrl || '',
-        palpites: palpitesObj,
-        locked: true,
-      }, { merge: true });
+      if (tourneyPhase === 'fase2') {
+        await setDoc(doc(db, "usuarios", activeParticipantId), {
+          nome: activeParticipant.name,
+          avatar: activeParticipant.avatar || '⚽',
+          email: activeParticipant.email || '',
+          imageUrl: activeParticipant.imageUrl || '',
+          palpites: palpitesObj,
+          lockedFase2: true,
+        }, { merge: true });
+      } else {
+        await setDoc(doc(db, "usuarios", activeParticipantId), {
+          nome: activeParticipant.name,
+          avatar: activeParticipant.avatar || '⚽',
+          email: activeParticipant.email || '',
+          imageUrl: activeParticipant.imageUrl || '',
+          palpites: palpitesObj,
+          locked: true,
+        }, { merge: true });
+      }
 
       triggerToast('🔐 Palpites CONSOLIDADOS e BLOQUEADOS definitivamente! Boa sorte!');
     } catch (err) {
@@ -677,23 +836,34 @@ export default function App() {
     const target = participants.find((p) => p.id === pId);
     if (!target) return;
 
-    if (!window.confirm(`Deseja desbloquear os palpites de ${target.name}? Ele(a) poderá editar novamente.`)) {
+    const phaseLabel = tourneyPhase === 'fase2' ? 'Segunda Fase (Mata-Mata)' : 'Primeira Fase (Grupos)';
+    if (!window.confirm(`Deseja desbloquear os palpites de ${target.name} para a ${phaseLabel}? Ele(a) poderá editar novamente.`)) {
       return;
     }
 
     // Update state
     const updatedParticipants = participants.map((p) => {
       if (p.id === pId) {
-        return { ...p, locked: false };
+        if (tourneyPhase === 'fase2') {
+          return { ...p, lockedFase2: false };
+        } else {
+          return { ...p, locked: false };
+        }
       }
       return p;
     });
     setParticipants(updatedParticipants);
 
     try {
-      await setDoc(doc(db, "usuarios", pId), {
-        locked: false,
-      }, { merge: true });
+      if (tourneyPhase === 'fase2') {
+        await setDoc(doc(db, "usuarios", pId), {
+          lockedFase2: false,
+        }, { merge: true });
+      } else {
+        await setDoc(doc(db, "usuarios", pId), {
+          locked: false,
+        }, { merge: true });
+      }
       triggerToast(`🔓 Palpites de ${target.name} desbloqueados com sucesso!`);
     } catch (err) {
       console.error("Erro ao desbloquear participante:", err);
@@ -781,7 +951,10 @@ export default function App() {
     status: 'SCHEDULED' | 'LIVE' | 'FINISHED',
     minuteParam?: number | null
   ) => {
-    const updated = matches.map((m) => {
+    const isFase2 = tourneyPhase === 'fase2';
+    const targetMatches = isFase2 ? matchesFase2 : matches;
+
+    const updated = targetMatches.map((m) => {
       if (m.id === matchId) {
         let finalMinute = m.minute;
         if (minuteParam !== undefined && minuteParam !== null) {
@@ -802,7 +975,11 @@ export default function App() {
       return m;
     });
 
-    setMatches(updated);
+    if (isFase2) {
+      setMatchesFase2(updated);
+    } else {
+      setMatches(updated);
+    }
 
     const converted = updated.map((m) => ({
       id: m.id,
@@ -819,7 +996,11 @@ export default function App() {
     }));
 
     try {
-      await setDoc(doc(db, "config", "jogos"), { lista: converted });
+      if (isFase2) {
+        await setDoc(doc(db, "config", "jogos_fase2"), { lista: converted });
+      } else {
+        await setDoc(doc(db, "config", "jogos"), { lista: converted });
+      }
       triggerToast(`☁️ Resultados oficiais sincronizados na Nuvem!`);
     } catch (err) {
       console.error("Erro ao salvar jogos no Firebase:", err);
@@ -828,10 +1009,16 @@ export default function App() {
   };
 
   const handleResetMatches = async () => {
-    const resetList = initialMatches.map((m) => ({
-      ...m,
-    }));
-    setMatches(resetList);
+    const isFase2 = tourneyPhase === 'fase2';
+    const resetList = isFase2
+      ? initialMatchesFase2.map((m) => ({ ...m }))
+      : initialMatches.map((m) => ({ ...m }));
+
+    if (isFase2) {
+      setMatchesFase2(resetList);
+    } else {
+      setMatches(resetList);
+    }
 
     const converted = resetList.map((m) => ({
       id: m.id,
@@ -848,7 +1035,11 @@ export default function App() {
     }));
 
     try {
-      await setDoc(doc(db, "config", "jogos"), { lista: converted });
+      if (isFase2) {
+        await setDoc(doc(db, "config", "jogos_fase2"), { lista: converted });
+      } else {
+        await setDoc(doc(db, "config", "jogos"), { lista: converted });
+      }
       triggerToast('🔄 Resultados limpos e sincronizados com a Nuvem!');
     } catch (err) {
       console.error("Erro ao limpar jogos no Firebase:", err);
@@ -1271,7 +1462,9 @@ export default function App() {
   };
 
   // Calculate global leaderboards
-  const scoresLeaderboard = calculateLeaderboard(participants, matches, guesses);
+  const scoresLeaderboard = tourneyPhase === 'fase2'
+    ? calculateLeaderboardFase2(participants, matchesFase2, guesses)
+    : calculateLeaderboard(participants, matches, guesses);
   const activeParticipant = participants.find((p) => p.id === activeParticipantId);
 
   return (
@@ -1478,6 +1671,40 @@ export default function App() {
           )}
         </AnimatePresence>
 
+        {/* Premium Phase Segment Switcher - High fidelity toggle */}
+        <div className="flex flex-col sm:flex-row justify-between items-center bg-white border border-emerald-100 rounded-2xl p-4 shadow-xs gap-3 relative overflow-hidden" id="phase-switcher-container">
+          <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500" />
+          <div className="z-10 text-left">
+            <h2 className="font-extrabold text-slate-900 tracking-tight flex items-center gap-2 text-sm sm:text-base">
+              <Sparkles className="w-4 h-4 text-emerald-500 animate-pulse" />
+              Fase Ativa do Torneio
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">Selecione para alternar palpites, rankings e regras de pontuação</p>
+          </div>
+          <div className="bg-slate-100/85 p-1 rounded-xl flex gap-1 w-full sm:w-auto shrink-0 border border-slate-200/40">
+            <button
+              onClick={() => handleSwitchPhase('grupo')}
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all duration-300 cursor-pointer flex items-center justify-center gap-1.5 ${
+                tourneyPhase === 'grupo'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              }`}
+            >
+              <span>1ª Fase (Grupos)</span>
+            </button>
+            <button
+              onClick={() => handleSwitchPhase('fase2')}
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-all duration-300 cursor-pointer flex items-center justify-center gap-1.5 ${
+                tourneyPhase === 'fase2'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              }`}
+            >
+              <span>2ª Fase (Mata-Mata) 🏆</span>
+            </button>
+          </div>
+        </div>
+
         {/* Two Columns Dashboard */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" id="dashboard-columns-grid">
           
@@ -1490,8 +1717,9 @@ export default function App() {
                 participants={participants}
                 scores={scoresLeaderboard}
                 activeParticipantId={activeParticipantId}
-                matches={matches}
+                matches={tourneyPhase === 'fase2' ? matchesFase2 : matches}
                 guesses={guesses}
+                tourneyPhase={tourneyPhase}
               />
             </div>
 
@@ -1534,6 +1762,7 @@ export default function App() {
                     onLockGuesses={handleLockGuesses}
                     onGoToGuesses={() => setMobileActiveTab('jogos')}
                     unfilledCount={pUnfilledCount}
+                    tourneyPhase={tourneyPhase}
                   />
                 );
               })()}
@@ -1816,7 +2045,7 @@ export default function App() {
 
 
               <MatchesList
-                matches={matches}
+                matches={tourneyPhase === 'fase2' ? matchesFase2 : matches}
                 guesses={guesses}
                 participants={participants}
                 activeParticipantId={activeParticipantId}
@@ -1825,6 +2054,7 @@ export default function App() {
                 isAdminMode={isAdminMode}
                 onUpdateActualScore={handleUpdateActualScore}
                 onLockGuesses={handleLockGuesses}
+                tourneyPhase={tourneyPhase}
               />
             </div>
           </section>

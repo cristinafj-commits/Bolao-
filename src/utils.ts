@@ -81,8 +81,114 @@ export const initialMatches: Match[] = [
   { id: 'm71', homeTeam: 'Jordânia', awayTeam: 'Argentina', homeFlag: '🇯🇴', awayFlag: '🇦🇷', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Grupo J (Rodada 3)', date: '27 Jun, 23:00' }
 ];
 
+// Default World Cup Knockout Stages matches for the Second Phase (Round of 32/16 avos to the Final)
+export const initialMatchesFase2: Match[] = [
+  // --- 16 AVOS DE FINAL ---
+  { id: 'k0', homeTeam: 'África do Sul', awayTeam: 'Canadá', homeFlag: '🇿🇦', awayFlag: '🇨🇦', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: '16 avos de final', date: '28 Jun, 16:00' },
+  { id: 'k1', homeTeam: 'Brasil', awayTeam: 'Japão', homeFlag: '🇧🇷', awayFlag: '🇯🇵', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: '16 avos de final', date: '29 Jun, 14:00' },
+  { id: 'k2', homeTeam: 'Alemanha', awayTeam: 'Paraguai', homeFlag: '🇩🇪', awayFlag: '🇵🇾', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: '16 avos de final', date: '29 Jun, 17:30' },
+  { id: 'k3', homeTeam: 'Holanda', awayTeam: 'Marrocos', homeFlag: '🇳🇱', awayFlag: '🇲🇦', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: '16 avos de final', date: '29 Jun, 22:00' },
+  { id: 'k4', homeTeam: 'Costa do Marfim', awayTeam: 'Noruega', homeFlag: '🇨🇮', awayFlag: '🇳🇴', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: '16 avos de final', date: '30 Jun, 14:00' },
+  { id: 'k5', homeTeam: 'França', awayTeam: 'Suécia', homeFlag: '🇫🇷', awayFlag: '🇸🇪', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: '16 avos de final', date: '30 Jun, 18:00' },
+  { id: 'k6', homeTeam: 'México', awayTeam: 'Equador', homeFlag: '🇲🇽', awayFlag: '🇪🇨', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: '16 avos de final', date: '30 Jun, 22:00' },
+  { id: 'k7', homeTeam: 'Inglaterra', awayTeam: 'RD Congo', homeFlag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', awayFlag: '🇨🇩', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: '16 avos de final', date: '01 Jul, 13:00' },
+  { id: 'k8', homeTeam: 'Bélgica', awayTeam: 'Senegal', homeFlag: '🇧🇪', awayFlag: '🇸🇳', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: '16 avos de final', date: '01 Jul, 16:00' },
+  { id: 'k9', homeTeam: 'Estados Unidos', awayTeam: 'Bósnia e Herzegovina', homeFlag: '🇺🇸', awayFlag: '🇧🇦', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: '16 avos de final', date: '01 Jul, 21:00' },
+  { id: 'k10', homeTeam: 'Espanha', awayTeam: 'Áustria', homeFlag: '🇪🇸', awayFlag: '🇦🇹', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: '16 avos de final', date: '02 Jul, 16:00' },
+  { id: 'k11', homeTeam: 'Portugal', awayTeam: 'Croácia', homeFlag: '🇵🇹', awayFlag: '🇭🇷', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: '16 avos de final', date: '02 Jul, 20:00' },
+  { id: 'k12', homeTeam: 'Suíça', awayTeam: 'Argélia', homeFlag: '🇨🇭', awayFlag: '🇩🇿', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: '16 avos de final', date: '03 Jul, 00:00' },
+  { id: 'k13', homeTeam: 'Austrália', awayTeam: 'Egito', homeFlag: '🇦🇺', awayFlag: '🇪🇬', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: '16 avos de final', date: '03 Jul, 15:00' },
+  { id: 'k14', homeTeam: 'Argentina', awayTeam: 'Cabo Verde', homeFlag: '🇦🇷', awayFlag: '🇨🇻', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: '16 avos de final', date: '03 Jul, 19:00' },
+  { id: 'k15', homeTeam: 'Colômbia', awayTeam: 'Gana', homeFlag: '🇨🇴', awayFlag: '🇬🇭', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: '16 avos de final', date: '03 Jul, 22:30' },
+
+  // --- OITAVAS DE FINAL ---
+  { id: 'k16', homeTeam: 'Vencedor Alemanha x Paraguai', awayTeam: 'Vencedor França x Suécia', homeFlag: '🏳️', awayFlag: '🏳️', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Oitavas de final', date: '03 Jul, 13:00' },
+  { id: 'k17', homeTeam: 'Vencedor África do Sul x Canadá', awayTeam: 'Vencedor Holanda x Marrocos', homeFlag: '🏳️', awayFlag: '🏳️', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Oitavas de final', date: '03 Jul, 18:00' },
+  { id: 'k18', homeTeam: 'Vencedor Brasil x Japão', awayTeam: 'Vencedor Costa do Marfim x Noruega', homeFlag: '🏳️', awayFlag: '🏳️', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Oitavas de final', date: '04 Jul, 13:00' },
+  { id: 'k19', homeTeam: 'Vencedor México x Equador', awayTeam: 'Vencedor Inglaterra x RD Congo', homeFlag: '🏳️', awayFlag: '🏳️', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Oitavas de final', date: '04 Jul, 18:00' },
+  { id: 'k20', homeTeam: 'Vencedor Espanha x Áustria', awayTeam: 'Vencedor Portugal x Croácia', homeFlag: '🏳️', awayFlag: '🏳️', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Oitavas de final', date: '05 Jul, 13:00' },
+  { id: 'k21', homeTeam: 'Vencedor Estados Unidos x Bósnia', awayTeam: 'Vencedor Bélgica x Senegal', homeFlag: '🏳️', awayFlag: '🏳️', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Oitavas de final', date: '05 Jul, 18:00' },
+  { id: 'k22', homeTeam: 'Vencedor Argentina x Cabo Verde', awayTeam: 'Vencedor Austrália x Egito', homeFlag: '🏳️', awayFlag: '🏳️', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Oitavas de final', date: '05 Jul, 21:00' },
+  { id: 'k23', homeTeam: 'Vencedor Suíça x Argélia', awayTeam: 'Vencedor Colômbia x Gana', homeFlag: '🏳️', awayFlag: '🏳️', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Oitavas de final', date: '05 Jul, 23:00' },
+
+  // --- QUARTAS DE FINAL ---
+  { id: 'k24', homeTeam: 'Vencedor Oitavas 1', awayTeam: 'Vencedor Oitavas 2', homeFlag: '🏳️', awayFlag: '🏳️', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Quartas de final', date: '06 Jul, 16:00' },
+  { id: 'k25', homeTeam: 'Vencedor Oitavas 3', awayTeam: 'Vencedor Oitavas 4', homeFlag: '🏳️', awayFlag: '🏳️', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Quartas de final', date: '07 Jul, 16:05' },
+  { id: 'k26', homeTeam: 'Vencedor Oitavas 5', awayTeam: 'Vencedor Oitavas 6', homeFlag: '🏳️', awayFlag: '🏳️', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Quartas de final', date: '08 Jul, 16:00' },
+  { id: 'k27', homeTeam: 'Vencedor Oitavas 7', awayTeam: 'Vencedor Oitavas 8', homeFlag: '🏳️', awayFlag: '🏳️', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Quartas de final', date: '08 Jul, 20:00' },
+
+  // --- SEMIFINAIS ---
+  { id: 'k28', homeTeam: 'Vencedor Quartas 1', awayTeam: 'Vencedor Quartas 2', homeFlag: '🏳️', awayFlag: '🏳️', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Semifinais', date: '09 Jul, 16:00' },
+  { id: 'k29', homeTeam: 'Vencedor Quartas 3', awayTeam: 'Vencedor Quartas 4', homeFlag: '🏳️', awayFlag: '🏳️', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Semifinais', date: '10 Jul, 16:00' },
+
+  // --- DISPUTA DE 3º LUGAR ---
+  { id: 'k30', homeTeam: 'Perdedor Semifinal 1', awayTeam: 'Perdedor Semifinal 2', homeFlag: '🏳️', awayFlag: '🏳️', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Disputa de 3º lugar', date: '18 Jul, 16:00' },
+
+  // --- FINAL ---
+  { id: 'k31', homeTeam: 'Vencedor Semifinal 1', awayTeam: 'Vencedor Semifinal 2', homeFlag: '🏳️', awayFlag: '🏳️', homeScore: null, awayScore: null, status: 'SCHEDULED', minute: 0, group: 'Final', date: '19 Jul, 16:00' }
+];
+
 // Initial pre-registered participants
 export const initialParticipants: Participant[] = [];
+
+/**
+ * Checks if a match is expired for guessing (i.e. less than 12 hours before start, or already started/finished).
+ */
+export function isMatchExpiredForGuesses(matchDateStr: string, matchId?: string): boolean {
+  if (!matchDateStr) return false;
+  
+  // Exceção solicitada pelo usuário: liberar apenas o primeiro jogo de hoje (África do Sul x Canadá - k0)
+  if (matchId === 'k0' || matchDateStr === '28 Jun, 16:00') {
+    return false;
+  }
+  
+  try {
+    // Expected format: "DD Month, HH:MM"
+    const regex = /(\d+)\s+([A-Za-zçãõáéíóú]+),\s+(\d+):(\d+)/i;
+    const match = matchDateStr.match(regex);
+    if (!match) return false;
+    
+    const day = parseInt(match[1], 10);
+    const monthStr = match[2].toLowerCase();
+    const hours = parseInt(match[3], 10);
+    const minutes = parseInt(match[4], 10);
+    
+    // Map Portuguese/English month name to 0-indexed month
+    const monthsMap: Record<string, number> = {
+      'jan': 0, 'janeiro': 0,
+      'feb': 1, 'fev': 1, 'fevereiro': 1,
+      'mar': 2, 'março': 2,
+      'apr': 3, 'abr': 3, 'abril': 3,
+      'may': 4, 'mai': 4, 'maio': 4,
+      'jun': 5, 'junho': 5,
+      'jul': 6, 'julho': 6,
+      'aug': 7, 'ago': 7, 'agosto': 7,
+      'sep': 8, 'set': 8, 'setembro': 8,
+      'oct': 9, 'out': 9, 'outubro': 9,
+      'nov': 10, 'novembro': 10,
+      'dec': 11, 'dez': 11, 'dezembro': 11
+    };
+    
+    const month = monthsMap[monthStr] !== undefined ? monthsMap[monthStr] : 5; // Default June (5)
+    
+    // Use the current year from local time (e.g., 2026)
+    const year = 2026;
+    
+    // Create Date object in local timezone
+    const matchDate = new Date(year, month, day, hours, minutes);
+    
+    const now = new Date();
+    const diffMs = matchDate.getTime() - now.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+    
+    // If diffHours is less than 12, it means we are less than 12 hours away from the match,
+    // or the match is already on a past date.
+    return diffHours < 12;
+  } catch (e) {
+    console.error("Error parsing match date:", e);
+    return false;
+  }
+}
 
 // Predefined predictions for initial participants to populate the app on first boot (covering Round 1)
 export const initialGuesses: Guess[] = [];
@@ -290,3 +396,87 @@ export function calculateLeaderboard(
     return b.correctOutcomes - a.correctOutcomes;
   });
 }
+
+/**
+ * Computes scores and leaderboard statistics for Phase 2 participants.
+ * Since future stages depend on previous outcomes, users are NOT penalized
+ * with a 0-point score for not filling subsequent stages. Points are calculated
+ * for any completed games that have predictions.
+ */
+export function calculateLeaderboardFase2(
+  participants: Participant[],
+  matches: Match[],
+  guesses: Guess[]
+): ParticipantScores[] {
+  return participants.map((p) => {
+    let points = 0;
+    let bonusPoints = 0;
+    let exactScores = 0;
+    let correctOutcomes = 0;
+
+    const pointsBreakdown = {
+      exact: 0,
+      difference: 0,
+      oneTeam: 0,
+      outcome: 0,
+      zero: 0,
+    };
+
+    // Calculate points only for matches in Phase 2 that actually have results
+    matches.forEach((m) => {
+      if (m.homeScore !== null && m.awayScore !== null) {
+        const userGuess = guesses.find((g) => g.participantId === p.id && g.matchId === m.id);
+        if (userGuess) {
+          const res = calculateGuessPoints(
+            userGuess.homeScoreGuess,
+            userGuess.awayScoreGuess,
+            m.homeScore,
+            m.awayScore
+          );
+
+          points += res.points;
+          bonusPoints += res.bonusPoints;
+          if (res.type === 'EXACT') {
+            exactScores++;
+            pointsBreakdown.exact++;
+          } else if (res.type === 'DIFFERENCE') {
+            correctOutcomes++;
+            pointsBreakdown.difference++;
+          } else if (res.type === 'ONE_TEAM') {
+            correctOutcomes++;
+            pointsBreakdown.oneTeam++;
+          } else if (res.type === 'OUTCOME') {
+            correctOutcomes++;
+            pointsBreakdown.outcome++;
+          } else {
+            pointsBreakdown.zero++;
+          }
+        } else {
+          pointsBreakdown.zero++;
+        }
+      }
+    });
+
+    return {
+      participantId: p.id,
+      points,
+      bonusPoints,
+      exactScores,
+      correctOutcomes,
+      pointsBreakdown,
+      isIncomplete: false, // No penalty for unfinished matches in Phase 2
+    };
+  }).sort((a, b) => {
+    // 1. Sort by points descending
+    if (b.points !== a.points) {
+      return b.points - a.points;
+    }
+    // 2. Tie-breaker 1: Exact scores count descending
+    if (b.exactScores !== a.exactScores) {
+      return b.exactScores - a.exactScores;
+    }
+    // 3. Tie-breaker 2: Outcomes count descending
+    return b.correctOutcomes - a.correctOutcomes;
+  });
+}
+

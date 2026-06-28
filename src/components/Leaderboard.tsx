@@ -11,13 +11,15 @@ interface LeaderboardProps {
   activeParticipantId: string;
   matches: Match[];
   guesses: Guess[];
+  tourneyPhase?: 'grupo' | 'fase2';
 }
 
-export default function Leaderboard({ participants, scores: rawScores, activeParticipantId, matches, guesses }: LeaderboardProps) {
+export default function Leaderboard({ participants, scores: rawScores, activeParticipantId, matches, guesses, tourneyPhase = 'grupo' }: LeaderboardProps) {
   // Only include participants who have complete guesses and are locked
   const scores = rawScores.filter((s) => {
     const p = participants.find((x) => x.id === s.participantId);
-    return !s.isIncomplete && p?.locked;
+    const isLocked = tourneyPhase === 'fase2' ? p?.lockedFase2 : p?.locked;
+    return !s.isIncomplete && isLocked;
   });
 
   const firstStat = scores[0];
@@ -219,7 +221,9 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
   // Count servants vs interns to calculate total prize money dynamically
   const countServidores = participants.filter((p) => p.role !== 'estagiario').length;
   const countEstagiarios = participants.filter((p) => p.role === 'estagiario').length;
-  const totalPrizeMoney = (countServidores * 50) + (countEstagiarios * 20);
+  const totalPrizeMoney = tourneyPhase === 'fase2'
+    ? (countServidores * 30) + (countEstagiarios * 10)
+    : (countServidores * 50) + (countEstagiarios * 20);
 
   // Dynamic badge based on actual registration density
   let statusBadgeValue = (
@@ -256,9 +260,13 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
         <div className="z-10 text-left">
           <h3 className="font-extrabold text-white tracking-tight flex items-center gap-2 text-base sm:text-lg">
             <Award className="w-5.5 h-5.5 text-amber-400 animate-pulse shrink-0" />
-            Classificação Geral
+            {tourneyPhase === 'fase2' ? 'Ranking Segunda Fase 🏆' : 'Ranking Geral - 1ª Fase'}
           </h3>
-          <p className="text-[11px] text-blue-105">Classificação do bolão calculada em tempo real</p>
+          <p className="text-[11px] text-blue-105">
+            {tourneyPhase === 'fase2'
+              ? 'Standings do Mata-Mata calculados em tempo real'
+              : 'Classificação da Fase de Grupos encerrada'}
+          </p>
         </div>
         {statusBadgeValue}
       </div>
@@ -703,7 +711,9 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
             <Gift className="w-8 h-8 text-emerald-600 mx-auto animate-pulse" />
             <h4 className="font-black text-emerald-950 text-sm uppercase tracking-wide">Quadro Geral de Prêmios</h4>
             <p className="text-[11px] text-slate-600 max-w-sm mx-auto leading-relaxed">
-              O prêmio principal em dinheiro é financiado de forma colaborativa: Servidores pagam R$ 50 e Estagiários pagam R$ 20. 100% dos fundos vão do Bolão direto para o 1º colocado!
+              {tourneyPhase === 'fase2'
+                ? 'O prêmio principal em dinheiro é financiado de forma colaborativa: Servidores pagam R$ 30 e Estagiários pagam R$ 10. 100% dos fundos vão do Bolão direto para o 1º colocado!'
+                : 'O prêmio principal em dinheiro é financiado de forma colaborativa: Servidores pagam R$ 50 e Estagiários pagam R$ 20. 100% dos fundos vão do Bolão direto para o 1º colocado!'}
             </p>
           </div>
 
@@ -736,57 +746,65 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
                     <Briefcase className="w-3 h-3 text-emerald-600 shrink-0" /> Servidores
                   </div>
                   <span className="text-base font-black text-slate-800 block mt-0.5">{countServidores}x</span>
-                  <span className="text-[8px] text-slate-400 block font-semibold font-mono">R$ 50 por inscrição</span>
+                  <span className="text-[8px] text-slate-400 block font-semibold font-mono">
+                    R$ {tourneyPhase === 'fase2' ? 30 : 50} por inscrição
+                  </span>
                 </div>
                 <div className="p-2 bg-white/80 rounded-xl border border-slate-100">
                   <div className="flex items-center justify-center gap-1 text-[9px] text-slate-400 font-extrabold block uppercase tracking-wider">
                     <GraduationCap className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> Estagiários
                   </div>
                   <span className="text-base font-black text-slate-800 block mt-0.5">{countEstagiarios}x</span>
-                  <span className="text-[8px] text-slate-400 block font-semibold font-mono">R$ 20 por inscrição</span>
+                  <span className="text-[8px] text-slate-400 block font-semibold font-mono">
+                    R$ {tourneyPhase === 'fase2' ? 10 : 20} por inscrição
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* 2nd Prêmio: Album */}
-            <div className="hover:scale-[1.01] transition-transform duration-200 bg-white border border-slate-150 p-4 rounded-2xl shadow-3xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 text-slate-800">
-              <div className="space-y-1 text-left">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] bg-slate-100 text-slate-600 border border-slate-205/60 font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                    🥈 2º Prêmio
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-bold font-mono">Vice-Campeão</span>
+            {tourneyPhase !== 'fase2' && (
+              <div className="hover:scale-[1.01] transition-transform duration-200 bg-white border border-slate-150 p-4 rounded-2xl shadow-3xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 text-slate-800">
+                <div className="space-y-1 text-left">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] bg-slate-100 text-slate-600 border border-slate-205/60 font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                      🥈 2º Prêmio
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-bold font-mono">Vice-Campeão</span>
+                  </div>
+                  <h5 className="font-extrabold text-sm text-slate-850">Álbum da Copa do RH 📖</h5>
+                  <p className="text-xs text-slate-500 leading-relaxed max-w-sm font-semibold">
+                    Álbum oficial completo e personalizado do evento Copa RH! Perfeito para colecionar fotos dos momentos marcantes da rodada.
+                  </p>
                 </div>
-                <h5 className="font-extrabold text-sm text-slate-850">Álbum da Copa do RH 📖</h5>
-                <p className="text-xs text-slate-500 leading-relaxed max-w-sm font-semibold">
-                  Álbum oficial completo e personalizado do evento Copa RH! Perfeito para colecionar fotos dos momentos marcantes da rodada.
-                </p>
+                <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex sm:flex-col items-center justify-center gap-1.5 shrink-0 min-w-[75px] h-full">
+                  <span className="text-2xl">📖</span>
+                  <span className="text-[8px] text-slate-400 font-black uppercase tracking-wider text-center">Exclusivo!</span>
+                </div>
               </div>
-              <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex sm:flex-col items-center justify-center gap-1.5 shrink-0 min-w-[75px] h-full">
-                <span className="text-2xl">📖</span>
-                <span className="text-[8px] text-slate-400 font-black uppercase tracking-wider text-center">Exclusivo!</span>
-              </div>
-            </div>
+            )}
 
             {/* 3rd Prêmio: Limpeza de Pele */}
-            <div className="hover:scale-[1.01] transition-transform duration-200 bg-white border border-slate-150 p-4 rounded-2xl shadow-3xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 text-slate-800">
-              <div className="space-y-1 text-left">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                    🥉 3º Prêmio
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-bold font-mono">Terceiro Lugar</span>
+            {tourneyPhase !== 'fase2' && (
+              <div className="hover:scale-[1.01] transition-transform duration-200 bg-white border border-slate-150 p-4 rounded-2xl shadow-3xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 text-slate-800">
+                <div className="space-y-1 text-left">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                      🥉 3º Prêmio
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-bold font-mono">Terceiro Lugar</span>
+                  </div>
+                  <h5 className="font-extrabold text-sm text-slate-850">Limpeza de Pele Profissional 💆‍♀️✨</h5>
+                  <p className="text-xs text-slate-500 leading-relaxed max-w-sm font-semibold">
+                    Uma sessão estética especializada e relaxante para cuidar do rosto com o máximo de carinho após o torneio.
+                  </p>
                 </div>
-                <h5 className="font-extrabold text-sm text-slate-850">Limpeza de Pele Profissional 💆‍♀️✨</h5>
-                <p className="text-xs text-slate-500 leading-relaxed max-w-sm font-semibold">
-                  Uma sessão estética especializada e relaxante para cuidar do rosto com o máximo de carinho após o torneio.
-                </p>
+                <div className="bg-amber-50/15 border border-amber-100/50 p-3 rounded-xl flex sm:flex-col items-center justify-center gap-1.5 shrink-0 min-w-[75px] h-full">
+                  <span className="text-2xl animate-pulse">💆‍♀️</span>
+                  <span className="text-[8px] text-amber-600 font-black uppercase tracking-wider text-center">Skin Care</span>
+                </div>
               </div>
-              <div className="bg-amber-50/15 border border-amber-100/50 p-3 rounded-xl flex sm:flex-col items-center justify-center gap-1.5 shrink-0 min-w-[75px] h-full">
-                <span className="text-2xl animate-pulse">💆‍♀️</span>
-                <span className="text-[8px] text-amber-600 font-black uppercase tracking-wider text-center">Skin Care</span>
-              </div>
-            </div>
+            )}
 
           </div>
         </div>

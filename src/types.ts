@@ -23,6 +23,7 @@ export interface Participant {
   imageUrl?: string;
   isGoogleUser?: boolean;
   locked?: boolean;
+  lockedFase2?: boolean;
   role?: 'servidor' | 'estagiario';
 }
 

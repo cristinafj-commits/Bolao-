@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Match, Guess, Participant } from '../types';
-import { calculateGuessPoints } from '../utils';
+import { calculateGuessPoints, isMatchExpiredForGuesses } from '../utils';
 import { Users, Save, CheckCircle, ChevronDown, ChevronUp, Lock, Edit2, Play, Sparkles, AlertCircle, Calendar, Search, ListFilter, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Normalizes single-digit or zero-padded day names (e.g., "09 Jun" or "9 Jun" become "9 Jun")
@@ -40,6 +40,7 @@ interface MatchesListProps {
   isAdminMode: boolean;
   onUpdateActualScore: (matchId: string, homeScore: number | null, awayScore: number | null, status: 'SCHEDULED' | 'LIVE' | 'FINISHED', minute?: number) => void;
   onLockGuesses?: () => void;
+  tourneyPhase?: 'grupo' | 'fase2';
 }
 
 export default function MatchesList({
@@ -52,6 +53,7 @@ export default function MatchesList({
   isAdminMode,
   onUpdateActualScore,
   onLockGuesses,
+  tourneyPhase = 'grupo',
 }: MatchesListProps) {
   const [expandedGuesses, setExpandedGuesses] = useState<Record<string, boolean>>({});
   const [editGuesses, setEditGuesses] = useState<Record<string, { home: number; away: number }>>({});
@@ -155,14 +157,22 @@ export default function MatchesList({
   const consultedParticipant = participants.find((p) => p.id === consultedParticipantId);
   const isConsultingSelf = consultedParticipantId === activeParticipantId;
 
+  const isActiveParticipantLocked = tourneyPhase === 'fase2' ? activeParticipant?.lockedFase2 : activeParticipant?.locked;
+  const isConsultedParticipantLocked = tourneyPhase === 'fase2' ? consultedParticipant?.lockedFase2 : consultedParticipant?.locked;
+
   const [isBulkSaving, setIsBulkSaving] = useState(false);
 
   const dirtyMatchesInfo = useMemo(() => {
-    if (!isConsultingSelf || (activeParticipant?.locked && !isAdminMode)) {
+    if (!isConsultingSelf || (isActiveParticipantLocked && !isAdminMode)) {
       return [];
     }
     const list: { matchId: string; homeScore: number; awayScore: number; m: Match }[] = [];
     matches.forEach((m) => {
+      // Se não for admin e o palpite para a partida estiver expirado (trava de 12h), ignora
+      if (!isAdminMode && isMatchExpiredForGuesses(m.date, m.id)) {
+        return;
+      }
+
       const valHome = localHomeGuesses[m.id] ?? '';
       const valAway = localAwayGuesses[m.id] ?? '';
       const isMarked = valHome !== '' && valAway !== '';
@@ -569,7 +579,7 @@ export default function MatchesList({
                     .filter(p => p.id !== activeParticipantId)
                     .map(p => (
                       <option key={p.id} value={p.id}>
-                        👁️ Palpites de {p.name} {p.locked ? '🔒' : '📝'}
+                        👁️ Palpites de {p.name} {(tourneyPhase === 'fase2' ? p.lockedFase2 : p.locked) ? '🔒' : '📝'}
                       </option>
                     ))
                   }
@@ -692,7 +702,7 @@ export default function MatchesList({
       {activeParticipant && !isAdminMode && (
         <div 
           className={`p-4 rounded-xl border flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm mb-4 ${
-            activeParticipant.locked
+            isActiveParticipantLocked
               ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
               : unfilledMatchesCount > 0
                 ? 'bg-amber-50/50 border-amber-200 text-amber-950'
@@ -702,7 +712,7 @@ export default function MatchesList({
         >
           <div className="flex items-start gap-3">
             <div className={`p-2 rounded-lg border shrink-0 ${
-              activeParticipant.locked
+              isActiveParticipantLocked
                 ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
                 : unfilledMatchesCount > 0
                   ? 'bg-amber-100 border-amber-300 text-amber-705'
@@ -712,14 +722,14 @@ export default function MatchesList({
             </div>
             <div className="space-y-0.5">
               <span className="font-extrabold text-xs uppercase tracking-wider block">
-                {activeParticipant.locked 
+                {isActiveParticipantLocked 
                   ? '🔒 Seus Palpites Estão Consolidados' 
                   : unfilledMatchesCount > 0
                     ? `📝 Palpites em Modo Rascunho (${matches.length - unfilledMatchesCount}/${matches.length} Preenchidos)`
                     : '🎉 Pronto para Trancar Tudo!'}
               </span>
               <span className="text-xs text-slate-600 mt-1 block leading-relaxed">
-                {activeParticipant.locked
+                {isActiveParticipantLocked
                   ? `Seus palpites para todos os jogos da Copa estão validados e trancados definitivamente na nuvem. Boa sorte!`
                   : unfilledMatchesCount > 0
                     ? `Faltam palpites para ${unfilledMatchesCount} jogo(s) de um total de ${matches.length}. Você precisa cadastrar palpites para todos os dias e jogos para liberar a confirmação.`
@@ -728,7 +738,7 @@ export default function MatchesList({
             </div>
           </div>
 
-          {!activeParticipant.locked && (
+          {!isActiveParticipantLocked && (
             <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto shrink-0 justify-center md:justify-end">
               {dirtyMatchesInfo.length > 0 && onSaveMultipleGuesses && (
                 <button
@@ -870,8 +880,10 @@ export default function MatchesList({
           const isFinished = m.status === 'FINISHED';
           const isScheduled = m.status === 'SCHEDULED';
 
-          // Allow submitting guesses even for already played or live games to let user consolidate results
-          const isMatchLocked = !isConsultingSelf || (!!activeParticipant?.locked && !isAdminMode);
+          // Allow submitting guesses even for already played or live games to let user consolidate results,
+          // but lock if the profile is locked, we're not consulting ourselves, or the match has expired for guesses (12h limit)
+          const isMatchExpired = isMatchExpiredForGuesses(m.date, m.id);
+          const isMatchLocked = !isConsultingSelf || (!!isActiveParticipantLocked && !isAdminMode) || (!isAdminMode && isMatchExpired);
 
           // Calculate points for active participant if match score exists
           const scoreResult = calculateGuessPoints(
@@ -909,8 +921,14 @@ export default function MatchesList({
                     </span>
                   )}
                   {isScheduled && (
-                    <span className="text-slate-600 font-bold tracking-tight animate-fade-in text-[11px] sm:text-xs" id={`date-${m.id}`}>
+                    <span className="text-slate-600 font-bold tracking-tight animate-fade-in text-[11px] sm:text-xs flex items-center gap-1" id={`date-${m.id}`}>
                       {m.date}
+                      {isMatchExpired && !isAdminMode && (
+                        <span className="bg-amber-150 text-amber-900 border border-amber-250 text-[9px] px-1.5 py-0.5 rounded-sm font-black flex items-center gap-0.5" title="Palpites trancados (menos de 12h do horário do jogo)">
+                          <Lock className="w-2.5 h-2.5 text-amber-700" />
+                          Trancado (12h)
+                        </span>
+                      )}
                     </span>
                   )}
                 </div>
@@ -1060,7 +1078,7 @@ export default function MatchesList({
                             <span>{consultedParticipant.avatar}</span>
                           )}
                           <span>{consultedParticipant.name}</span>
-                          {consultedParticipant.locked && <span>🔒</span>}
+                          {isConsultedParticipantLocked && <span>🔒</span>}
                         </span>
                       </div>
                     </div>

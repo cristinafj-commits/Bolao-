@@ -17,6 +17,7 @@ interface ParticipantSelectorProps {
   onLockGuesses?: () => void;
   onGoToGuesses?: () => void;
   unfilledCount?: number;
+  tourneyPhase?: 'grupo' | 'fase2';
 }
 
 export default function ParticipantSelector({
@@ -33,6 +34,7 @@ export default function ParticipantSelector({
   onLockGuesses,
   onGoToGuesses,
   unfilledCount = 0,
+  tourneyPhase = 'grupo',
 }: ParticipantSelectorProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newParticipantName, setNewParticipantName] = useState('');
@@ -430,7 +432,7 @@ export default function ParticipantSelector({
                           Google
                         </span>
                       )}
-                      {p.locked && (
+                      {(tourneyPhase === 'fase2' ? p.lockedFase2 : p.locked) && (
                         <span className="bg-amber-100 text-amber-900 border border-amber-200 text-[8px] px-1.5 py-0.2 rounded-xs font-semibold flex items-center gap-0.5" title="Palpites finalizados e bloqueados">
                           <Lock className="w-2.5 h-2.5 text-amber-700" />
                           Trancado
@@ -445,8 +447,8 @@ export default function ParticipantSelector({
                     </h4>
                     <p className="text-[10px] text-slate-500">
                       {isActive 
-                        ? (p.locked ? '✓ Seu perfil está trancado para edições.' : '👉 Seu perfil ativo (Preencha os palpites abaixo)')
-                        : (p.locked ? '🔒 Palpites trancados.' : '📝 Palpites em rascunho.')
+                        ? ((tourneyPhase === 'fase2' ? p.lockedFase2 : p.locked) ? '✓ Seu perfil está trancado para edições.' : '👉 Seu perfil ativo (Preencha os palpites abaixo)')
+                        : ((tourneyPhase === 'fase2' ? p.lockedFase2 : p.locked) ? '🔒 Palpites trancados.' : '📝 Palpites em rascunho.')
                       }
                     </p>
                   </div>
@@ -728,7 +730,7 @@ export default function ParticipantSelector({
                   Etapa de Palpites
                 </span>
                 <span className="text-[11px] text-slate-500 mt-0.5 leading-relaxed block">
-                  {activeParticipant.locked
+                  {(tourneyPhase === 'fase2' ? activeParticipant.lockedFase2 : activeParticipant.locked)
                     ? 'Seus palpites estão cadastrados e bloqueados para edições.'
                     : 'Acesse a tabela para cadastrar ou editar seus palpites com este perfil ativo.'}
                 </span>
@@ -743,21 +745,21 @@ export default function ParticipantSelector({
                   onGoToGuesses();
                 }}
                 className={`w-full py-2.5 rounded-xl text-white font-extrabold text-xs transition duration-150 transform hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer shadow-xs uppercase tracking-wider ${
-                  activeParticipant.locked
+                  (tourneyPhase === 'fase2' ? activeParticipant.lockedFase2 : activeParticipant.locked)
                     ? 'bg-slate-700 hover:bg-slate-600'
                     : 'bg-emerald-600 hover:bg-emerald-500 animate-pulse'
                 }`}
                 style={{ animationDuration: '2.5s' }}
               >
                 <span>
-                  {activeParticipant.locked ? '🔍 Ver Meus Palpites nos Jogos' : '👉 PREENCHER MEUS PALPITES ⚽'}
+                  {(tourneyPhase === 'fase2' ? activeParticipant.lockedFase2 : activeParticipant.locked) ? '🔍 Ver Meus Palpites nos Jogos' : '👉 PREENCHER MEUS PALPITES ⚽'}
                 </span>
               </button>
             )}
           </div>
 
           {/* FINAL LOCK STAGE */}
-          {!activeParticipant.locked && onLockGuesses && (
+          {!(tourneyPhase === 'fase2' ? activeParticipant.lockedFase2 : activeParticipant.locked) && onLockGuesses && (
             <div className="pt-3.5 border-t border-slate-100/80 flex flex-col gap-2">
               <div className="flex items-start gap-2.5">
                 <div className="p-1.5 rounded-lg border bg-amber-50 border-amber-100 text-amber-700 shrink-0">
@@ -802,7 +804,7 @@ export default function ParticipantSelector({
             </div>
           )}
 
-          {activeParticipant.locked && (
+          {(tourneyPhase === 'fase2' ? activeParticipant.lockedFase2 : activeParticipant.locked) && (
             <div className="pt-2 border-t border-slate-100/90 flex items-center gap-1.5 text-[10px] text-emerald-800 font-bold justify-center uppercase tracking-wider">
               <span>✓ Participação Devidamente Trancada na Nuvem</span>
             </div>
