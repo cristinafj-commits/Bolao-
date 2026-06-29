@@ -15,8 +15,10 @@ interface LeaderboardProps {
 }
 
 export default function Leaderboard({ participants, scores: rawScores, activeParticipantId, matches, guesses, tourneyPhase = 'grupo' }: LeaderboardProps) {
-  // Include all participants in the leaderboard so they can track their live points and progress
-  const scores = rawScores;
+  // Include only participants who have at least one guess in this phase
+  const scores = rawScores.filter((s) => {
+    return guesses.some((g) => g.participantId === s.participantId && matches.some((m) => m.id === g.matchId));
+  });
 
   const firstStat = scores[0];
   const secondStat = scores[1];
