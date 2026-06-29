@@ -179,7 +179,7 @@ export default function MatchesList({
     }
     const list: { matchId: string; homeScore: number; awayScore: number; m: Match }[] = [];
     matches.forEach((m) => {
-      // Se não for admin e o palpite para a partida estiver expirado (trava de 12h), ignora
+      // Se não for admin e o palpite para a partida estiver expirado (jogo já começou), ignora
       if (!isAdminMode && isMatchExpiredForGuesses(m.date, m.id)) {
         return;
       }
@@ -745,8 +745,8 @@ export default function MatchesList({
                 {isActiveParticipantLocked
                   ? `Seus palpites para a ${tourneyPhase === 'fase2' ? 'Segunda Fase (Mata-Mata)' : 'Primeira Fase (Grupos)'} estão validados e trancados definitivamente na nuvem. Boa sorte!`
                   : unfilledMatchesCount > 0
-                    ? `Seus palpites estão salvos em modo rascunho. Você pode salvá-los e alterá-los livremente. Para sua segurança, os palpites de cada jogo são bloqueados individualmente 12 horas antes do início da partida.`
-                    : `Parabéns! Todos os ${matches.length} jogos da ${tourneyPhase === 'fase2' ? 'Segunda Fase (Mata-Mata)' : 'Primeira Fase (Grupos)'} foram respondidos. Seus palpites serão bloqueados individualmente 12 horas antes do início de cada jogo.`}
+                    ? `Seus palpites estão salvos em modo rascunho. Você pode salvá-los e alterá-los livremente até o horário de início de cada partida.`
+                    : `Parabéns! Todos os ${matches.length} jogos da ${tourneyPhase === 'fase2' ? 'Segunda Fase (Mata-Mata)' : 'Primeira Fase (Grupos)'} foram respondidos. Seus palpites serão bloqueados individualmente no início de cada jogo.`}
               </span>
             </div>
           </div>
@@ -935,7 +935,7 @@ export default function MatchesList({
           const isScheduled = m.status === 'SCHEDULED';
 
           // Allow submitting guesses even for already played or live games to let user consolidate results,
-          // but lock if the profile is locked, we're not consulting ourselves, or the match has expired for guesses (12h limit)
+          // but lock if the profile is locked, we're not consulting ourselves, or the match has expired for guesses (match already started)
           const isMatchExpired = isMatchExpiredForGuesses(m.date, m.id);
           const isMatchLockedIndividually = consultedParticipant?.lockedMatches?.includes(m.id);
           const isMatchLocked = !isConsultingSelf || (!!isActiveParticipantLocked && !isAdminMode) || (!isAdminMode && isMatchExpired) || (!!isMatchLockedIndividually && !isAdminMode);
@@ -981,9 +981,9 @@ export default function MatchesList({
                     <span className="text-slate-600 font-bold tracking-tight animate-fade-in text-[11px] sm:text-xs flex items-center gap-1" id={`date-${m.id}`}>
                       {m.date}
                       {isMatchExpired && !isAdminMode && (
-                        <span className="bg-amber-150 text-amber-900 border border-amber-250 text-[9px] px-1.5 py-0.5 rounded-sm font-black flex items-center gap-0.5" title="Palpites trancados (menos de 12h do horário do jogo)">
+                        <span className="bg-amber-150 text-amber-900 border border-amber-250 text-[9px] px-1.5 py-0.5 rounded-sm font-black flex items-center gap-0.5" title="Palpites trancados (partida já iniciada)">
                           <Lock className="w-2.5 h-2.5 text-amber-700" />
-                          Trancado (12h)
+                          Trancado (Início)
                         </span>
                       )}
                     </span>

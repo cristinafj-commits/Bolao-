@@ -181,9 +181,8 @@ export function isMatchExpiredForGuesses(matchDateStr: string, matchId?: string)
     const diffMs = matchDate.getTime() - now.getTime();
     const diffHours = diffMs / (1000 * 60 * 60);
     
-    // If diffHours is less than 12, it means we are less than 12 hours away from the match,
-    // or the match is already on a past date.
-    return diffHours < 12;
+    // If diffHours is less than 0, it means the match has already started.
+    return diffHours < 0;
   } catch (e) {
     console.error("Error parsing match date:", e);
     return false;

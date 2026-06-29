@@ -770,7 +770,7 @@ export default function ParticipantSelector({
                     Etapa 2: Validar e Bloquear (Opcional)
                   </span>
                   <span className="text-[11px] text-slate-500 mt-0.5 leading-relaxed block text-left">
-                    Os palpites de cada jogo são gravados como rascunho e bloqueados individualmente 12 horas antes do início da partida. Se preferir, você pode trancá-los todos de uma vez.
+                    Os palpites de cada jogo são gravados como rascunho e bloqueados individualmente no início de cada partida. Se preferir, você pode trancá-los todos de uma vez.
                     {unfilledCount > 0 && (
                       <span className="text-amber-600 font-medium block mt-0.5">
                         ⚠️ Você ainda possui {unfilledCount} jogo(s) sem palpites. Se trancar agora, não poderá preenchê-los depois.
