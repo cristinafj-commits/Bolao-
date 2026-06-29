@@ -381,18 +381,6 @@ export function calculateLeaderboard(
     );
     const hasFinishedAll = participantGuesses.length === matches.length;
 
-    if (!hasFinishedAll) {
-      points = 0;
-      bonusPoints = 0;
-      exactScores = 0;
-      correctOutcomes = 0;
-      pointsBreakdown.exact = 0;
-      pointsBreakdown.difference = 0;
-      pointsBreakdown.oneTeam = 0;
-      pointsBreakdown.outcome = 0;
-      pointsBreakdown.zero = matches.length;
-    }
-
     return {
       participantId: p.id,
       points,
@@ -403,10 +391,6 @@ export function calculateLeaderboard(
       isIncomplete: !hasFinishedAll,
     };
   }).sort((a, b) => {
-    // Sort incomplete participants to the bottom
-    if (a.isIncomplete && !b.isIncomplete) return 1;
-    if (!a.isIncomplete && b.isIncomplete) return -1;
-
     // 1. Sort by points descending
     if (b.points !== a.points) {
       return b.points - a.points;

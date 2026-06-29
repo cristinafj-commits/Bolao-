@@ -15,12 +15,8 @@ interface LeaderboardProps {
 }
 
 export default function Leaderboard({ participants, scores: rawScores, activeParticipantId, matches, guesses, tourneyPhase = 'grupo' }: LeaderboardProps) {
-  // Only include participants who have complete guesses and are locked
-  const scores = rawScores.filter((s) => {
-    const p = participants.find((x) => x.id === s.participantId);
-    const isLocked = tourneyPhase === 'fase2' ? p?.lockedFase2 : p?.locked;
-    return !s.isIncomplete && isLocked;
-  });
+  // Include all participants in the leaderboard so they can track their live points and progress
+  const scores = rawScores;
 
   const firstStat = scores[0];
   const secondStat = scores[1];
@@ -677,20 +673,16 @@ export default function Leaderboard({ participants, scores: rawScores, activePar
                       {/* Dynamic Total Points */}
                       <div className="col-span-2 text-right pr-1 sm:pr-2 flex flex-col items-end justify-center">
                         <div className={`font-mono leading-none tracking-tight flex items-center justify-end ${
-                          stat.isIncomplete 
-                            ? 'text-slate-400 font-bold text-xs line-through' 
-                            : isCurrentUser 
-                              ? 'text-sm sm:text-lg font-black text-emerald-650' 
-                              : 'text-xs sm:text-sm md:text-base font-extrabold text-slate-800'
+                          isCurrentUser 
+                            ? 'text-sm sm:text-lg font-black text-emerald-650' 
+                            : 'text-xs sm:text-sm md:text-base font-extrabold text-slate-800'
                         }`}>
                           {stat.points}
                         </div>
-                        {!stat.isIncomplete && (
-                          <div className="text-[7px] sm:text-[8px] uppercase font-black text-slate-400 tracking-wider mt-0.5 select-none leading-none flex items-center justify-end gap-0.5 group-hover:text-emerald-650 transition-colors">
-                            <span>conferir</span>
-                            <Eye className="w-2 sm:w-2.5 h-2 sm:h-2.5 text-slate-400 group-hover:text-emerald-500 transition-colors shrink-0" />
-                          </div>
-                        )}
+                        <div className="text-[7px] sm:text-[8px] uppercase font-black text-slate-400 tracking-wider mt-0.5 select-none leading-none flex items-center justify-end gap-0.5 group-hover:text-emerald-650 transition-colors">
+                          <span>conferir</span>
+                          <Eye className="w-2 sm:w-2.5 h-2 sm:h-2.5 text-slate-400 group-hover:text-emerald-500 transition-colors shrink-0" />
+                        </div>
                       </div>
 
                     </motion.div>
